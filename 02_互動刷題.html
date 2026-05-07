@@ -1,0 +1,1903 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2026 AIGC初級 互動刷題練習</title>
+<style>
+:root{
+  --pri:#2563eb;--pri-d:#1e40af;--pri-l:#dbeafe;
+  --ok:#16a34a;--ok-l:#dcfce7;
+  --err:#dc2626;--err-l:#fee2e2;
+  --warn:#d97706;--warn-l:#fef3c7;
+  --bg:#f1f5f9;--card:#fff;
+  --txt:#1e293b;--muted:#64748b;--border:#e2e8f0;
+  --radius:12px;--shadow:0 2px 12px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans TC',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+
+/* Header */
+#hdr{background:var(--pri-d);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+#hdr-left{display:flex;align-items:center;gap:10px}
+#hdr-title{font-size:15px;font-weight:700}
+#hdr-sub{font-size:12px;opacity:.8}
+#hdr-timer{font-size:14px;font-weight:700;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:20px;min-width:70px;text-align:center}
+#hdr-timer.warn{background:rgba(217,119,6,.5)}
+
+/* Side action panel (回首頁 + 題目導航) */
+#side-actions{position:fixed;right:16px;top:50%;transform:translateY(-50%);display:none;flex-direction:column;gap:10px;z-index:80}
+#side-actions.show{display:flex}
+.side-btn{background:#fff;border:2px solid var(--border);border-radius:14px;padding:10px 8px;font-size:11px;font-weight:700;color:var(--text);cursor:pointer;box-shadow:var(--shadow);display:flex;flex-direction:column;align-items:center;gap:3px;min-width:64px;transition:all .15s;font-family:inherit}
+.side-btn:hover{border-color:var(--pri);color:var(--pri);transform:translateX(-3px);box-shadow:0 4px 12px rgba(37,99,235,.18)}
+.side-btn .ico{font-size:20px;line-height:1}
+.side-btn.home:hover{border-color:#ef4444;color:#ef4444;box-shadow:0 4px 12px rgba(239,68,68,.18)}
+@media (max-width:880px){#side-actions{right:8px;top:auto;bottom:80px;transform:none;flex-direction:column;gap:6px}.side-btn{min-width:54px;padding:8px 6px;font-size:10px;border-radius:12px}.side-btn .ico{font-size:18px}}
+/* Wrong-bank review list */
+.review-list{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.review-item{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:14px;border-left:4px solid #ef4444}
+.review-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+.review-head .meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.review-rm{background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;font-weight:600;font-family:inherit}
+.review-rm:hover{background:#fecaca}
+.review-q{font-size:14px;line-height:1.6;color:var(--text);margin-bottom:8px;font-weight:600}
+.review-opts{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.review-opt{font-size:13px;color:#475569;padding:4px 8px;border-radius:6px;background:#f8fafc}
+.review-opt.correct{background:#d1fae5;color:#047857;font-weight:600}
+.review-opt.user-wrong{background:#fee2e2;color:#b91c1c;text-decoration:line-through}
+.review-ans{font-size:12px;color:var(--muted);padding:6px 8px;background:#fef3c7;border-radius:6px;margin-bottom:6px}
+.review-exp{font-size:12px;color:#475569;line-height:1.6;padding:6px 8px;background:#eff6ff;border-radius:6px;display:none}
+.review-exp.show{display:block}
+.review-exp-toggle{font-size:11px;color:var(--pri);cursor:pointer;font-weight:600;margin-top:4px;display:inline-block}
+.review-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:14px}
+.review-empty .ico{font-size:48px;display:block;margin-bottom:12px}
+
+/* Nav panel overlay */
+.nav-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:200;display:none}
+.nav-overlay.show{display:block}
+.nav-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;max-width:480px;width:92%;max-height:85vh;overflow-y:auto;z-index:201;display:none}
+.nav-panel.show{display:block}
+.nav-panel h3{font-size:16px;font-weight:800;margin-bottom:12px;color:var(--pri-d)}
+.nav-round-sec{margin-bottom:14px}
+.nav-round-head{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--pri-l);border-radius:6px;margin-bottom:8px;font-size:13px;font-weight:700;color:var(--pri-d);cursor:pointer}
+.nav-round-head:hover{background:#bfdbfe}
+.nav-round-head .rh-stat{font-size:11px;font-weight:500;color:var(--muted)}
+.nav-round-head.collapsed + .nav-grid{display:none}
+.nav-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+.nav-btn{min-width:40px;height:40px;border-radius:8px;border:2px solid var(--border);background:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center;line-height:36px}
+.nav-btn:hover{border-color:var(--pri);background:var(--pri-l)}
+.nav-btn.current{border-color:var(--pri);background:var(--pri);color:#fff}
+.nav-btn.done{border-color:var(--ok);background:var(--ok-l);color:var(--ok)}
+.nav-btn.skip{border-color:var(--warn);background:var(--warn-l);color:var(--warn)}
+.nav-btn.wrong{border-color:var(--err);background:var(--err-l);color:var(--err)}
+.nav-close{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:var(--border);border:none;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.nav-close:hover{background:var(--err);color:#fff}
+
+/* Pause overlay */
+#pause-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:300;display:none;align-items:center;justify-content:center}
+#pause-overlay.show{display:flex}
+#pause-box{background:var(--card);border-radius:var(--radius);padding:32px;text-align:center;max-width:300px}
+#pause-box h2{font-size:20px;font-weight:800;color:var(--pri-d);margin-bottom:16px}
+#pause-box p{color:var(--muted);font-size:14px;margin-bottom:20px}
+
+/* Progress bar */
+#prog-wrap{background:rgba(255,255,255,.2);height:4px}
+#prog-bar{height:4px;background:#fff;transition:width .3s}
+
+/* Main content */
+#main{max-width:680px;margin:0 auto;padding:16px}
+
+/* Start Screen */
+.start-hero{text-align:center;padding:32px 16px 24px}
+.start-hero h1{font-size:26px;font-weight:800;color:var(--pri-d);margin-bottom:8px}
+.start-hero p{color:var(--muted);font-size:14px}
+.round-table{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin:16px 0}
+.round-table table{width:100%;border-collapse:collapse;font-size:14px}
+.round-table th{background:var(--pri-d);color:#fff;padding:10px 14px;text-align:left;font-weight:600}
+.round-table td{padding:10px 14px;border-bottom:1px solid var(--border)}
+.round-table tr:last-child td{border-bottom:none}
+.round-table tr:nth-child(even) td{background:#f8fafc}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.tag-1{background:#dbeafe;color:#1e40af}
+.tag-2{background:#f3e8ff;color:#7e22ce}
+.tag-3{background:#dcfce7;color:#15803d}
+.tag-4{background:#fef3c7;color:#92400e}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 28px;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;transition:all .15s;text-decoration:none}
+.btn-pri{background:var(--pri);color:#fff}
+.btn-pri:hover{background:var(--pri-d);transform:translateY(-1px)}
+.btn-pri:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-outline{background:#fff;color:var(--pri);border:2px solid var(--pri)}
+.btn-outline:hover{background:var(--pri-l)}
+.btn-sm{padding:8px 18px;font-size:13px}
+.btn-full{width:100%;margin-top:8px}
+.btn-ok{background:var(--ok);color:#fff}
+.btn-ok:hover{background:#15803d}
+
+/* Round intro banner */
+.round-banner{background:var(--pri-d);color:#fff;border-radius:var(--radius);padding:20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.round-banner h2{font-size:18px;font-weight:800}
+.round-banner p{font-size:13px;opacity:.85;margin-top:4px}
+.round-stats{display:flex;gap:16px;flex-wrap:wrap}
+.stat-chip{background:rgba(255,255,255,.15);padding:6px 14px;border-radius:20px;font-size:13px;text-align:center}
+.stat-chip span{display:block;font-size:18px;font-weight:800}
+
+/* Question Card */
+.q-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:14px}
+.q-meta{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.q-num{font-size:13px;font-weight:700;color:var(--muted)}
+.q-type-badge{font-size:11px;padding:2px 8px;border-radius:20px;font-weight:600}
+.badge-s{background:#dbeafe;color:#1e40af}
+.badge-m{background:#f3e8ff;color:#7e22ce}
+.q-orig{font-size:11px;color:var(--muted)}
+.q-text{font-size:16px;font-weight:600;line-height:1.6;color:var(--txt)}
+
+/* Options */
+.opts{margin-top:16px;display:flex;flex-direction:column;gap:8px}
+.opt{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:2px solid var(--border);border-radius:8px;cursor:pointer;transition:all .15s;background:#fff;text-align:left;width:100%}
+.opt:hover:not(.opt-disabled){border-color:var(--pri);background:var(--pri-l)}
+.opt.selected{border-color:var(--pri);background:var(--pri-l)}
+.opt.correct{border-color:var(--ok)!important;background:var(--ok-l)!important}
+.opt.wrong{border-color:var(--err)!important;background:var(--err-l)!important}
+.opt.missed{border-color:var(--ok);background:var(--ok-l);opacity:.7}
+.opt-disabled{cursor:default!important}
+.opt-letter{min-width:26px;height:26px;border-radius:50%;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;transition:all .15s}
+.opt.selected .opt-letter{background:var(--pri);color:#fff}
+.opt.correct .opt-letter{background:var(--ok);color:#fff}
+.opt.wrong .opt-letter{background:var(--err);color:#fff}
+.opt-text{font-size:14px;line-height:1.5}
+
+/* Feedback */
+.feedback{border-radius:8px;padding:14px 16px;margin-top:14px;display:none}
+.feedback.show{display:block}
+.feedback.fb-ok{background:var(--ok-l);border-left:4px solid var(--ok)}
+.feedback.fb-err{background:var(--err-l);border-left:4px solid var(--err)}
+.fb-title{font-weight:700;font-size:15px;margin-bottom:6px}
+.fb-ok .fb-title{color:var(--ok)}
+.fb-err .fb-title{color:var(--err)}
+.fb-exp{font-size:13px;color:var(--txt);line-height:1.6;max-height:60px;overflow:hidden;transition:max-height .3s}
+.fb-exp.expanded{max-height:500px}
+.fb-exp-toggle{font-size:12px;color:var(--pri);cursor:pointer;margin-top:4px}
+.fb-ans{font-size:13px;margin-top:6px;color:var(--muted)}
+
+/* Multi-choice hint */
+.multi-hint{background:var(--warn-l);color:#92400e;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:12px;border-left:3px solid var(--warn)}
+
+/* Action row */
+.action-row{display:flex;justify-content:flex-end;gap:10px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)}
+
+/* Round Summary */
+.summary-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:24px;margin-bottom:14px}
+.summary-card h3{font-size:18px;font-weight:800;margin-bottom:16px;color:var(--pri-d)}
+.score-big{text-align:center;padding:16px 0;border-bottom:1px solid var(--border);margin-bottom:16px}
+.score-big .num{font-size:52px;font-weight:900;line-height:1;color:var(--pri)}
+.score-big .denom{font-size:22px;color:var(--muted)}
+.score-big .pct{font-size:16px;color:var(--muted);margin-top:4px}
+.score-grade{display:inline-block;padding:4px 14px;border-radius:20px;font-size:14px;font-weight:700;margin-top:8px}
+.grade-a{background:var(--ok-l);color:var(--ok)}
+.grade-b{background:var(--pri-l);color:var(--pri-d)}
+.grade-c{background:var(--warn-l);color:var(--warn)}
+.grade-d{background:var(--err-l);color:var(--err)}
+.wrong-list{display:flex;flex-direction:column;gap:8px}
+.wrong-item{padding:10px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid var(--err);font-size:13px}
+.wrong-item .wi-q{font-weight:600;color:var(--txt);margin-bottom:4px}
+.wrong-item .wi-ans{color:var(--ok);font-size:12px}
+.wrong-item .wi-mine{color:var(--err);font-size:12px}
+
+/* Skip List */
+.skip-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.skip-item{padding:10px 14px;background:#f8fafc;border-radius:8px;border-left:3px solid var(--warn);font-size:13px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.skip-item .si-q{font-weight:600;color:var(--txt)}
+
+/* Final Summary */
+.final-hero{text-align:center;padding:24px 16px}
+.final-hero h2{font-size:24px;font-weight:900;color:var(--pri-d)}
+.breakdown-table{width:100%;border-collapse:collapse;font-size:14px}
+.breakdown-table th{background:var(--pri-d);color:#fff;padding:10px 14px;text-align:left}
+.breakdown-table td{padding:10px 14px;border-bottom:1px solid var(--border)}
+.breakdown-table tr:last-child td{border-bottom:none;font-weight:700;background:#f8fafc}
+.mini-bar{height:8px;background:var(--border);border-radius:4px;margin-top:4px}
+.mini-bar-fill{height:8px;border-radius:4px;background:var(--pri);transition:width .5s}
+
+/* Misc */
+.section-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:16px 0 8px}
+.empty-msg{text-align:center;color:var(--ok);padding:16px;font-weight:600}
+.tip-box{background:var(--warn-l);border-radius:8px;padding:12px 14px;font-size:13px;color:#92400e;border-left:3px solid var(--warn);margin-bottom:14px}
+
+@media(max-width:480px){
+  .round-banner{flex-direction:column;align-items:flex-start}
+  .score-big .num{font-size:44px}
+  .btn{padding:11px 20px;font-size:14px}
+  .q-text{font-size:15px}
+}
+</style>
+</head>
+<body>
+<div id="hdr">
+  <div id="hdr-left">
+    <div>
+      <div id="hdr-title">AIGC初級 刷題練習</div>
+      <div id="hdr-sub">2026年考試輔助課程</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <button id="hdr-pause" onclick="togglePause()" style="font-size:14px;font-weight:600;background:rgba(255,255,255,.15);padding:4px 12px;border-radius:20px;cursor:pointer;display:none">暫停</button>
+    <div id="hdr-timer">--:--</div>
+  </div>
+</div>
+<div id="side-actions">
+  <button class="side-btn home" onclick="backToHome()" title="回首頁"><span class="ico">🏠</span><span>回首頁</span></button>
+  <button class="side-btn" id="side-nav-btn" onclick="toggleNavPanel()" title="題目導航"><span class="ico">📋</span><span>題目導航</span></button>
+</div>
+<div class="nav-overlay" onclick="closeNavPanel()"></div>
+<div class="nav-panel">
+  <button class="nav-close" onclick="closeNavPanel()">×</button>
+  <h3 id="nav-title">題目導航</h3>
+  <input type="text" id="nav-search" placeholder="搜索題號或關鍵詞" style="width:100%;padding:8px 12px;border:2px solid var(--border);border-radius:8px;font-size:14px;margin-bottom:12px;outline:none" oninput="searchQuestions(this.value)">
+  <div id="nav-content"></div>
+</div>
+<div id="pause-overlay">
+  <div id="pause-box">
+    <h2>已暫停</h2>
+    <p>計時已暫停，點擊繼續恢復刷題</p>
+    <button class="btn btn-pri" onclick="togglePause()">繼續</button>
+  </div>
+</div>
+<div id="prog-wrap"><div id="prog-bar" style="width:0%"></div></div>
+<div id="main"></div>
+
+<script>
+// ============================================================
+// QUESTIONS DATA
+// ============================================================
+const QR12 = [
+// Round 1: AIGC基礎 + 數據安全
+{r:1,t:'s',id:'Q33',q:'AIGC是指？',o:['专业内容生成','用户内容生成','AI辅助内容生成','人工智能内容生成'],a:'D',e:'AIGC全称AI Generated Content，即人工智能内容生成。'},
+{r:1,t:'s',id:'Q3',q:'下列不属于AIGC生成内容范围的是？',o:['文本内容','视频内容','GPS中频数字信号','图像内容'],a:'C',e:'AIGC可生成文本、图像、视频、音频等，GPS中频数字信号属于工程信号，不在AIGC生成范围内。'},
+{r:1,t:'s',id:'Q47',q:'AIGC相比以人工为主内容生成的优势是？',o:['速度更快','内容更专业','成本更高','内容更稳定'],a:'A',e:'AIGC最核心优势是生成速度快且成本低，内容专业程度和稳定性仍需人工把关。'},
+{r:1,t:'s',id:'Q41',q:'下面不属于AIGC发展驱动因素的是？',o:['更多的数据和算力','慢工出细活的工匠精神','更好的模型','更丰富的应用需求'],a:'B',e:'AIGC三大驱动力：更多数据/算力、更好的模型、更丰富的应用需求。工匠精神不是AIGC发展驱动因素。'},
+{r:1,t:'s',id:'Q13',q:'关于AIGC算力的表述错误的是？',o:['在AIGC领域，算力一般是指GPU/TPU为主的AI专用加速器的计算和传输能力','AIGC模型的规模和复杂度不断增加，对算力的需求也在急剧上升','大部分AIGC大模型单台服务可完成预训练','数据和算力对AIGC的发展都很重要'],a:'C',e:'大型AIGC模型预训练需要数百乃至数千张GPU协同运算，单台服务器根本无法完成，故C错误。'},
+{r:1,t:'s',id:'Q60',q:'关于AIGC数据的表述错误的是？',o:['数据是AIGC发展的基础要素','数据的质量、多样性和规模对AIGC模型的性能有着直接影响','AIGC大模型以大规模标注数据有监督预训练为主','没有足够的数据，AIGC大模型无法进行有效的训练和优化'],a:'C',e:'大型AIGC模型主要采用大规模无标注/弱标注数据进行自监督预训练，而非以有监督预训练为主。'},
+{r:1,t:'s',id:'Q2',q:'AIGC的跨模态生成是指？',o:['模型的输入是两个不同的模态','模型的输入和输出属于不同的模态','模型的输出是两个不同的模态','模型的输入和输出都是两个不同的模态'],a:'B',e:'跨模态 = 输入与输出的模态不同，如文字(输入)→图像(输出)。'},
+{r:1,t:'s',id:'Q43',q:'数据安全风险分析中，哪一项属于数据输入端的风险？',o:['数据非法获取与投毒风险','数据训练偏见风险','数据泄露风险','恶意内容生成风险'],a:'A',e:'输入端风险：非法获取数据、数据投毒。偏见属于训练端，泄露/恶意生成属于输出端。'},
+{r:1,t:'s',id:'Q42',q:'在数据输出端，恶意内容生成风险主要包括下列哪种攻击方式？',o:['数据非法获取','指令注入攻击','数据泄露','数据训练偏见'],a:'B',e:'输出端恶意内容生成风险的主要手段是指令注入攻击（Prompt Injection）。'},
+{r:1,t:'s',id:'Q15',q:'根据课程内容，数据传输端的风险不包括下列哪项？',o:['数据拦截风险','数据篡改风险','数据训练偏见风险','未经授权访问风险'],a:'C',e:'传输端风险：拦截、篡改、未经授权访问。数据训练偏见属于模型训练层面，不是传输端风险。'},
+{r:1,t:'s',id:'Q26',q:'以下哪个案例体现了网络安全防护的重要性？',o:['某公司员工误将重要文件发送至错误邮箱','"WannaCry"勒索病毒事件','某工厂电力故障导致设备损坏','某社交应用未考虑用户隐私引发抵制'],a:'B',e:'WannaCry是典型的全球性网络安全攻击事件，最能体现网络安全防护的重要性。'},
+{r:1,t:'s',id:'Q28',q:'关于数据安全需求分析，以下哪项不属于法律法规保障层面？',o:['网络安全法','个人信息保护法','市场准入法','数据安全法'],a:'C',e:'数据安全法律框架：网络安全法、个人信息保护法、数据安全法。市场准入法不属于数据安全范畴。'},
+{r:1,t:'s',id:'Q38',q:'数据安全需求分析中提到的技术层面保障不包括以下哪项？',o:['加密技术','密钥管理','访问控制','市场营销策略'],a:'D',e:'技术保障包括加密、密钥管理、访问控制。市场营销策略属于商业运营，与技术安全无关。'},
+{r:1,t:'s',id:'Q48',q:'在企业自查层面的需求分析中，哪项不是必需的？',o:['组织架构建设','培训计划','市场营销策略','流程管理'],a:'C',e:'企业数据安全自查包括：组织架构、培训计划、流程管理。市场营销策略不属于安全自查范畴。'},
+{r:1,t:'s',id:'Q53',q:'传统安全风险评估的定性评估方法不包括以下哪种？',o:['风险矩阵法','概率分析','德尔菲法','情景分析法'],a:'B',e:'定性评估：风险矩阵法、德尔菲法、情景分析法。概率分析属于定量评估方法。'},
+{r:1,t:'s',id:'Q58',q:'数据安全政策与标准现状中提到的法律框架层面，不包括以下哪项？',o:['网络安全法','反垄断法','个人信息保护法','数据安全法'],a:'B',e:'数据安全法律三件套：网络安全法、个人信息保护法、数据安全法。反垄断法属于竞争法，不在其中。'},
+// Round 1 多選
+{r:1,t:'m',id:'M1',q:'下列属于AIGC特点的是？',o:['AI为辅人工为主','快速低成本制作','跨模态生成内容丰富','AI端到端生成'],a:'BCD',e:'AIGC特点：快速低成本、跨模态、AI端到端生成。A"AI为辅"描述的是传统AI辅助，不是AIGC特点。'},
+{r:1,t:'m',id:'M4',q:'以下属于跨模态AIGC的是？',o:['音频生音频','图生文','文生图','文生视频'],a:'BCD',e:'跨模态：输入输出模态不同。图生文(图→文)、文生图(文→图)、文生视频(文→视频)均跨模态；音频生音频是同模态。'},
+{r:1,t:'m',id:'M30',q:'以下属于单模态AIGC的是？',o:['文生文','图生图','文生图','视频生视频'],a:'ABD',e:'单模态：输入输出同一模态。文生文、图生图、视频生视频均为单模态；文生图是跨模态(C错)。'},
+{r:1,t:'m',id:'M21',q:'下列属于AIGC在娱乐领域的应用场景的是？',o:['音乐、绘画、视频等内容创作','虚拟偶像生成','社交互动','新闻报道稿件生成'],a:'ABC',e:'娱乐领域：内容创作、虚拟偶像、社交互动。新闻稿件生成属于媒体/传媒领域，不是娱乐领域。'},
+{r:1,t:'m',id:'M6',q:'传统安全风险的应对策略包括？',o:['技术手段，如更新安全防护系统','管理措施，如制定严格的数据管理制度','人员培训，提高安全意识和防范能力','忽视风险，不采取任何措施','仅依靠政府监管'],a:'ABC',e:'正确应对策略：技术手段(A)、管理措施(B)、人员培训(C)。D忽视风险和E仅靠政府监管均不正确。'},
+{r:1,t:'m',id:'M10',q:'在数据传输端，存在哪些风险？',o:['数据拦截风险','数据篡改风险','未经授权访问风险','数据分类分级不当风险'],a:'ABC',e:'传输端三大风险：拦截、篡改、未经授权访问。D数据分类分级不当属于数据管理层面，不是传输端风险。'},
+{r:1,t:'m',id:'M18',q:'新兴安全风险的特点有？',o:['技术复杂性','不确定性','传播快速性','隐蔽性','稳定性'],a:'ABCD',e:'新兴安全风险特点：技术复杂、不确定、传播快、隐蔽。E"稳定性"恰恰相反，新兴风险是不稳定、变化快的。'},
+{r:1,t:'m',id:'M24',q:'数据安全政策与标准现状中，哪些属于法律框架层面的法律？',o:['网络安全法','个人信息保护法','劳动法','数据安全法'],a:'ABD',e:'数据安全法律框架：网络安全法、个人信息保护法、数据安全法。劳动法与数据安全无直接关联。'},
+{r:1,t:'m',id:'M37',q:'评估传统安全风险的方法有？',o:['定性评估，如风险矩阵法、德尔菲法','定量评估，如概率分析、蒙特卡罗模拟','主观判断','完全不评估','依靠经验评估'],a:'AB',e:'正规风险评估方法：定性评估(A)和定量评估(B)。C主观判断、D完全不评估、E仅靠经验均不是规范方法。'},
+{r:1,t:'m',id:'M38',q:'技术层面保障措施中，哪些是必要的？',o:['加密技术','密钥管理','访问控制','市场营销策略'],a:'ABC',e:'技术保障三要素：加密技术(A)、密钥管理(B)、访问控制(C)。市场营销(D)与技术安全无关。'},
+// Round 2: 核心算法模型
+{r:2,t:'s',id:'Q8',q:'原生Transformer模型的输出是？',o:['图像','视频','音频','文本'],a:'D',e:'原生Transformer架构设计用于序列处理，原生输出为文本（词元序列）。'},
+{r:2,t:'s',id:'Q10',q:'以下哪种模型架构被广泛应用于AIGC并具有显著的优势？',o:['CNN（卷积神经网络）','RNN（循环神经网络）','LSTM（长短时记忆网络）','Transformer'],a:'D',e:'Transformer凭借自注意力机制，在AIGC各类任务中表现最突出，是当前主流架构。'},
+{r:2,t:'s',id:'Q6',q:'VideoGPT中用于学习原始视频下采样离散潜在表示的技术是？',o:['RNN','CNN','VQ-VAE','GAN'],a:'C',e:'VideoGPT使用VQ-VAE（向量量化变分自编码器）对视频进行下采样并学习离散潜在表示。'},
+{r:2,t:'s',id:'Q24',q:'在VideoGPT模型中，原始视频数据首先通过什么进行处理？',o:['通过Embedding进行向量化','由VQ-VAE进行下采样并转换为离散潜在变量','经过卷积神经网络处理','由Transformer架构的GPT提取特征'],a:'B',e:'VideoGPT处理流程：视频→VQ-VAE下采样→离散潜在变量→Transformer自回归生成。'},
+{r:2,t:'s',id:'Q25',q:'VideoGPT模型的主体包含哪两个主要结构？',o:['VQ-VAE和BiLSTM','VQ-VAE和Transformer','VQGAN和Transformer','BiLSTM和VQGAN'],a:'B',e:'VideoGPT = VQ-VAE（编解码压缩）+ Transformer（自回归生成），两者缺一不可。'},
+{r:2,t:'s',id:'Q9',q:'以下关于VideoGPT中VQ-VAE位置编码的说法，正确的是？',o:['初始值不是随机生成的','只有编码器才需要共享，解码器不需要','是固定不变的时空嵌入','在编码器和解码器的所有轴向注意力层之间共享'],a:'D',e:'VideoGPT中位置编码在编码器和解码器的所有轴向注意力层之间共享，且初始值是随机生成后学习的。'},
+{r:2,t:'s',id:'Q4',q:'在VideoGPT中，以下哪个不是Transformer的作用？',o:['对离散潜在变量进行自回归建模','进行图像分类','结合时空位置编码理解视频序列','预测下一个时间步的离散潜在表示'],a:'B',e:'VideoGPT的Transformer负责：自回归建模、结合时空位置编码、预测下一时间步。图像分类不在其职责范围内。'},
+{r:2,t:'s',id:'Q36',q:'在VideoGPT模型中，Transformer模型的作用是？',o:['对视频进行下采样','将离散潜在表示转换为连续像素值序列','预测下一个时间步的离散潜在表示','压缩和抽象化视频数据'],a:'C',e:'Transformer在VideoGPT中的核心作用是对离散潜在序列进行自回归建模，预测下一时间步。下采样是VQ-VAE的工作。'},
+{r:2,t:'s',id:'Q31',q:'以下关于VideoGPT的说法错误的是？',o:['主要由VQ-VAE和Transformer组成','Transformer采用全连接网络结构','VQ-VAE包含编码器和解码器','Transformer通过自注意力机制处理视频信息'],a:'B',e:'VideoGPT的Transformer使用轴向注意力（Axial Attention）而非全连接结构，全连接计算复杂度过高无法处理视频序列。'},
+{r:2,t:'s',id:'Q44',q:'在VideoGPT模型中，VQ-VAE使用什么目标进行训练？',o:['潜在空间的大小、码本的数量和自回归先验的容量','视频的分辨率和帧率','模型的训练时间和计算资源消耗','数据集的大小和多样性'],a:'A',e:'VQ-VAE的超参数包括潜在空间大小、码本数量和自回归先验容量，这些决定其编码能力。'},
+{r:2,t:'s',id:'Q5',q:'扩散模型的"反向扩散过程"指的是：',o:['从噪声恢复原始数据的过程','从数据生成噪声图像的过程','训练模型以最小化噪声','将数据映射到潜在空间的过程'],a:'A',e:'前向过程=加噪；反向过程=从噪声逐步恢复原始数据（即生成）。反向才是真正的"生成"阶段。'},
+{r:2,t:'s',id:'Q32',q:'在扩散模型中，SGMs（Score-based Generative Models）的核心思想是：',o:['使用条件生成模型提高生成质量','通过优化评分函数来生成高质量图像','使用预训练模型加速生成过程','将数据分布转化为高斯分布'],a:'B',e:'SGMs通过学习数据分布的梯度（评分函数/score function）来引导生成过程。'},
+{r:2,t:'s',id:'Q40',q:'在扩散模型中，DDPM（Denoising Diffusion Probabilistic Models）主要用于：',o:['生成高质量的图像','优化模型训练过程','加快图像生成速度','减少生成过程中的噪声'],a:'A',e:'DDPM（去噪扩散概率模型）的核心目标和应用是生成高质量图像。'},
+{r:2,t:'s',id:'Q45',q:'哪个扩散模型架构使用了"最优贝叶斯去噪"？',o:['DDPM','SDEs','SGMs','GANs'],a:'B',e:'SDEs（随机微分方程）框架使用最优贝叶斯去噪（Optimal Bayesian Denoising）。'},
+{r:2,t:'s',id:'Q57',q:'扩散模型的局限性中，哪一项最为突出？',o:['高质量生成图像所需的计算资源非常大','生成过程的噪声不可控','训练过程的时间过长','不适用于大规模数据集'],a:'A',e:'扩散模型最突出的局限是推理时需要多步去噪，计算资源消耗极大，速度慢。'},
+{r:2,t:'s',id:'Q16',q:'DALL·E的首次发布是在什么时间？',o:['2019年','2020年','2021年','2022年'],a:'C',e:'OpenAI于2021年初发布了第一代DALL·E模型。'},
+{r:2,t:'s',id:'Q21',q:'DALL·E是由哪家公司开发的？',o:['Google','Facebook','OpenAI','Microsoft'],a:'C',e:'DALL·E系列模型（包括DALL·E 2、3）均由OpenAI开发。'},
+{r:2,t:'s',id:'Q52',q:'DALL·E的工作流程中，哪个阶段负责生成最终图像？',o:['数据预处理','文本编码','图像解码','模型训练'],a:'C',e:'DALL·E流程：文本编码→先验分布→图像解码。最终图像在图像解码阶段输出。'},
+{r:2,t:'s',id:'Q19',q:'DALL·E模型的应用场景中，以下哪项不是其主要应用？',o:['创意设计','自动驾驶汽车','广告创意','插画设计'],a:'B',e:'DALL·E主要用于创意图像生成（设计、广告、插画等）。自动驾驶需要实时感知，与DALL·E生成能力无关。'},
+{r:2,t:'s',id:'Q55',q:'以下关于VQ-VAE和GAN的说法错误的是？',o:['VQ-VAE主要用于图像和视频的编码与解码，GAN主要用于生成新的图像','VQ-VAE和GAN都包含生成器和判别器','VQ-VAE通常采用自编码器结构，GAN由生成器和判别器组成','VQ-VAE的训练目标是最小化重建误差，GAN的训练目标是使生成器生成的图像骗过判别器'],a:'B',e:'VQ-VAE是自编码器结构（编码器+解码器），没有判别器。只有GAN才同时有生成器和判别器，故B错误。'},
+// Round 2 多選
+{r:2,t:'m',id:'M3',q:'以下哪些领域可以应用Stable Diffusion技术？',o:['医学图像处理','语音识别','艺术创作','自然语言处理'],a:'ACD',e:'SD可用于医学图像增强(A)、艺术创作(C)、与NLP结合的多模态生成(D)。语音识别(B)属于音频领域，不是SD的应用场景。'},
+{r:2,t:'m',id:'M9',q:'Stable Diffusion技术在图像生成中的优势有哪些？',o:['生成图像质量高','训练稳定性好','不需要对抗训练','所需计算资源少'],a:'ABC',e:'SD优势：高质量(A)、训练稳定(B，"Stable"即稳定)、不需要GAN对抗训练(C)。D错误，SD实际需要大量计算资源。'},
+{r:2,t:'m',id:'M34',q:'Stable Diffusion技术的核心步骤包括哪些？',o:['噪声添加','图像去噪','特征提取','判别器训练'],a:'AB',e:'SD核心：前向加噪(A)+反向去噪(B)。特征提取(C)是CNN的概念，判别器训练(D)属于GAN，SD不使用判别器。'},
+{r:2,t:'m',id:'M12',q:'扩散模型包含哪两个过程？',o:['前向扩散过程','反向扩散过程','向上扩散过程','向下扩散过程'],a:'AB',e:'扩散模型两过程：前向（逐步加噪）和反向（逐步去噪/恢复）。"向上/向下扩散"是干扰项，不存在此说法。'},
+{r:2,t:'m',id:'M25',q:'扩散模型的主要优点包括哪些？',o:['生成的图像质量高','训练过程非常快速','能够生成多样化的图像','需要较少的计算资源'],a:'AC',e:'SD优点：生成质量高(A)、多样化(C)。B和D均错误——扩散模型训练和推理都需要大量计算资源，速度慢。'},
+{r:2,t:'m',id:'M8',q:'以下关于VideoGPT模型的优点，说法正确的有？',o:['高效的视频生成能力','高质量的生成结果','强大的扩展性和适应性','广泛的应用前景','文本驱动的生成能力'],a:'ABCDE',e:'VideoGPT的优点涵盖：高效生成(A)、高质量(B)、强扩展性(C)、广泛应用(D)、文本驱动(E)，五项均正确。'},
+{r:2,t:'m',id:'M13',q:'Space-Only 3D卷积的优点包含如下哪些？',o:['保持时间长度','减少参数和计算量','加大时间长度','加大参数和计算量'],a:'AB',e:'Space-Only 3D卷积只在空间维度卷积，保持时间维度(A)，从而减少参数和计算量(B)。C和D与之相反。'},
+{r:2,t:'m',id:'M31',q:'在使用VideoGPT模型进行视频创作时，需要进行以下哪些操作？',o:['进行环境配置，搭建适合模型运行的开发环境，安装必要的依赖和插件','构建数据集，包括获取、整理和预处理相关数据','对VQ-VAE使用pretrained模型训练，使其能够学习到有效的视频潜在表示','对Transformer进行训练，以提升模型对视频序列的理解和生成能力','进行推理使用，利用训练好的模型生成所需的视频内容'],a:'ABCDE',e:'VideoGPT视频创作完整流程五步均需执行：环境配置→数据集构建→VQ-VAE训练→Transformer训练→推理生成。'},
+{r:2,t:'m',id:'M16',q:'DALL·E的工作流程中，哪些步骤是必要的？',o:['文本编码','先验分布模型','图像解码','图像编码'],a:'ABC',e:'DALL·E生成流程：文本编码(A)→先验分布(B)→图像解码(C)。图像编码(D)是训练时dVAE的步骤，生成推理时不需要。'},
+{r:2,t:'m',id:'M17',q:'DALL·E的架构包含哪三个重要的组件？',o:['dVAE','Transformer','CLIP','GANs'],a:'ABC',e:'DALL·E三组件：dVAE（图像离散化）+ Transformer（文本到图像映射）+ CLIP（文本图像对齐）。不含GAN。'},
+{r:2,t:'m',id:'M22',q:'生成对抗网络通常包括哪些组件？',o:['生成器 Generator','判别器 Discriminator','长时记忆','短时记忆'],a:'AB',e:'GAN由生成器(G)和判别器(D)组成，两者对抗训练。长时记忆/短时记忆是LSTM的概念，不属于GAN架构。'},
+{r:2,t:'m',id:'M26',q:'主流的生成对抗网络类型包括？',o:['深度卷积生成对抗网络 DCGAN','近似最邻域 ANN','Wasserstein GAN','循环生成对抗网络 CycleGAN'],a:'ACD',e:'主流GAN：DCGAN(A)、WassersteinGAN(C)、CycleGAN(D)。ANN（近似最邻域）是搜索算法，不是GAN类型。'},
+{r:2,t:'m',id:'M19',q:'以下关于VideoGPT模型生成视频的说法，正确的有？',o:['能够根据视频数据进行生成','能够通过文本描述来生成相应的视频','VideoGPT生成视频尺寸没有限制','能够生成多种类型的视频样本','生成视频的质量非常高，没有提升空间了'],a:'ABD',e:'正确：视频数据驱动(A)、文本描述驱动(B)、多类型视频(D)。C错：VideoGPT有分辨率限制。E错：质量仍在持续提升中。'},
+{r:2,t:'m',id:'M35',q:'使用Video Diffusion Models制作视频时，包含如下哪些步骤？',o:['安装git并下载Video Stable Diffusion代码库','下载SVD/SVD-XT模型文件','创建虚拟环境并安装依赖','运行模型并制作视频'],a:'ABCD',e:'Video Diffusion视频制作完整流程：代码下载(A)→模型文件下载(B)→虚拟环境配置(C)→运行生成(D)，四步缺一不可。'}
+];
+const QR34 = [
+// Round 3: 提示詞工程 + 文案生成
+{r:3,t:'s',id:'Q7',q:'提示词工程主要是针对什么进行优化的技术方法？',o:['数据模型','语言模型','算法逻辑','用户界面'],a:'B',e:'提示词工程（Prompt Engineering）是通过优化输入文本来提升语言模型(LLM)输出质量的技术方法。'},
+{r:3,t:'s',id:'Q17',q:'提示词工程能够显著提升什么？',o:['模型的训练速度','生成文本的质量和相关性','用户的计算机技能','模型的存储效率'],a:'B',e:'提示词工程通过精心设计输入，显著提升生成文本的质量和相关性，而不改变模型本身。'},
+{r:3,t:'s',id:'Q23',q:'在设计高质量的提示词时，哪一项是最关键的？',o:['使用复杂语言','提供具体的背景信息','提供简短的指令','使用抽象的描述'],a:'B',e:'具体的背景信息是设计高质量提示词最关键的要素，让模型理解任务场景才能给出精准回答。'},
+{r:3,t:'s',id:'Q27',q:'课程中所讲解的提示词（Prompt）万能公式的要素中，不包括以下哪一项？',o:['定义角色','交代背景','提供示例','任务目标'],a:'C',e:'Prompt万能公式四要素：定义角色、交代背景、任务目标、结构化要求。"提供示例"不在四要素之内。'},
+{r:3,t:'s',id:'Q54',q:'在设计提示词时，以下哪个因素最不重要？',o:['目标受众的特征','文本生成的目标','模型的训练算法','信息传递的效果'],a:'C',e:'设计提示词时无需了解模型内部训练算法，关键是目标受众、生成目标和信息效果。'},
+{r:3,t:'s',id:'Q59',q:'在文案生成过程中，提示词设计不包括以下哪个要素？',o:['明确提问目标','提供背景信息','使用复杂的术语','设定格式和风格'],a:'C',e:'文案生成提示词要素：明确目标、提供背景、设定格式/风格。使用复杂术语反而会降低AI理解准确性。'},
+{r:3,t:'s',id:'Q37',q:'在提示词工程中，以下哪种方法可以提高模型的创造性？',o:['限制模型的输入数据','减少模型的训练时间','使用多样化的提示词组合','降低模型的复杂度'],a:'C',e:'多样化的提示词组合（如不同角色、风格、约束条件）可以激发模型的创造性输出。'},
+{r:3,t:'s',id:'Q49',q:'在提示词工程中，为了引导语言模型生成与特定行业相关的文本，以下哪种策略最有效？',o:['使用行业通用的术语和概念','增加模型的训练数据量','提高模型的计算复杂度','减少模型的训练轮次'],a:'A',e:'在提示词中使用行业专业术语和概念，能有效引导模型生成领域相关内容，无需改变模型本身。'},
+{r:3,t:'s',id:'Q50',q:'在内容创作领域，提示词工程如何帮助生成高质量的文本？',o:['通过限制模型的创造力','通过增加模型的训练难度','通过控制生成文本的风格、内容和结构','通过减少模型的参数数量'],a:'C',e:'提示词工程通过在输入中指定风格、内容要求和结构框架，引导模型输出符合需求的高质量文本。'},
+{r:3,t:'s',id:'Q51',q:'在信息检索系统中，精心设计的提示词可以帮助用户做什么？',o:['降低搜索速度','增加无关结果','更精确地表达自己的查询意图','减少搜索结果的相关性'],a:'C',e:'精心设计的提示词帮助用户更清晰地表达查询意图，从而获得更精准的检索结果。'},
+{r:3,t:'s',id:'Q14',q:'在机器翻译领域，提示词工程如何改进翻译质量？',o:['通过增加翻译模型的复杂度','通过减少源语言和目标语言的差异','通过提供适当的上下文提示词','通过提高翻译模型的训练效率'],a:'C',e:'为翻译模型提供上下文提示词（如语域、风格、专业背景），可以显著提升翻译质量和准确性。'},
+{r:3,t:'s',id:'Q29',q:'在提示词工程中，伦理和隐私问题主要体现在哪些方面？',o:['提示词的设计可能引导模型生成不适当或有害的内容','使用提示词可能增加模型的计算复杂度','提示词的选择会影响模型的训练速度','设计提示词需要对语言学有深入的理解'],a:'A',e:'提示词工程的核心伦理问题：精心设计的提示词可能被用于引导模型生成有害、偏见或违规内容。'},
+{r:3,t:'s',id:'Q1',q:'在文案生成的过程中，人类的主要职责是什么？',o:['生成初稿','内容扩展','方向设定和资料收集','增加创意性'],a:'C',e:'AIGC文案生成中：AI负责生成初稿，人类负责方向设定和资料收集，以及后续质量把关。'},
+{r:3,t:'s',id:'Q11',q:'在选择大模型进行文案创作时，以下哪个因素对文案生成质量最重要的？',o:['语言能力','用户友好性','成本和预算','模型稳定性和更新频率'],a:'A',e:'语言能力（理解力、表达力、语境把握）是决定文案生成质量的核心因素，其他因素为辅。'},
+{r:3,t:'s',id:'Q12',q:'大模型在文案写作中的哪个方面带来了显著的提升？',o:['视频生成','写作效率','图片生成','语音识别'],a:'B',e:'大模型对文案写作最直接的革新是大幅提升写作效率，能快速生成初稿供人类优化。'},
+{r:3,t:'s',id:'Q18',q:'AIDA模型中的第一个步骤是？',o:['Interest（兴趣）','Desire（欲望）','Action（行动）','Attention（注意）'],a:'D',e:'AIDA模型：Attention（注意）→ Interest（兴趣）→ Desire（欲望）→ Action（行动）。第一步是抓住注意力。'},
+{r:3,t:'s',id:'Q22',q:'PAS模型中的第二步是？',o:['Problem（问题）','Solution（解决方案）','Prove（证明）','Agitate（激发）'],a:'D',e:'PAS模型：Problem（呈现问题）→ Agitate（激发痛点）→ Solution（提供解决方案）。第二步是激发/放大痛点。'},
+{r:3,t:'s',id:'Q20',q:'在利用大模型进行文案生成时，如何确保文案质量？',o:['单次生成并直接使用','使用A/B测试','结合多样化风格','迭代优化'],a:'D',e:'确保文案质量的最有效方法是迭代优化——多轮生成、反馈调整、不断改进，而非单次直接使用。'},
+{r:3,t:'s',id:'Q34',q:'在文案生成的步骤中，初稿生成之后的下一步是什么？',o:['编辑和优化','收集资料','立即发布','提示词设计'],a:'A',e:'文案生成流程：收集资料→提示词设计→生成初稿→编辑和优化→发布。初稿后是编辑和优化。'},
+{r:3,t:'s',id:'Q30',q:'在评估生成的文案质量时，哪一个因素不需要重点考虑？',o:['准确性','连贯性','创意性','生成速度'],a:'D',e:'文案质量评估关注：准确性(内容正确)、连贯性(逻辑流畅)、创意性(吸引力)。生成速度是效率指标，与质量无关。'},
+{r:3,t:'s',id:'Q46',q:'利用大模型进行文案写作的有效实用方法不包括：',o:['明确目标和受众','提供清晰的指令','多轮生成','完全信任初稿'],a:'D',e:'AI初稿需要人工审核和优化，完全信任初稿是错误做法，可能导致事实错误或不符合需求的内容发布。'},
+// Round 3 多選
+{r:3,t:'m',id:'M2',q:'生成式提示词的特点包括哪些？',o:['创造性和灵活性','上下文依赖性','固定不变的输出','语言风格和一致性'],a:'ABD',e:'生成式提示词特点：创造灵活(A)、依赖上下文(B)、具有语言风格一致性(D)。C"固定不变输出"错误，生成式输出具有随机性。'},
+{r:3,t:'m',id:'M5',q:'设计高质量提示词时应注意哪些要素？',o:['提供明确的任务目标','使用简明扼要的语言','提供足够的背景信息','指定输出格式和风格','包含复杂的技术术语'],a:'ABCD',e:'高质量提示词四要素：明确目标(A)、简明语言(B)、充足背景(C)、指定格式(D)。E"复杂技术术语"反而降低可读性，是错误做法。'},
+{r:3,t:'m',id:'M7',q:'宣传文案通常具备哪些关键特点？',o:['简洁明了','详细介绍产品历史','情感共鸣','强调价值','号召行动'],a:'ACDE',e:'宣传文案特点：简洁明了(A)、情感共鸣(C)、强调价值(D)、号召行动(E)。B"详细介绍产品历史"不是宣传文案的核心特点。'},
+{r:3,t:'m',id:'M11',q:'文案生成的优化方法包括哪些？',o:['反馈调整','多次生成','使用单一提示词','人工编辑','持续学习'],a:'ABDE',e:'优化方法：反馈调整(A)、多次生成比较(B)、人工编辑(D)、持续学习改进(E)。C"使用单一提示词"是错误做法，多样化提示词才能优化输出。'},
+{r:3,t:'m',id:'M14',q:'关于大模型在文案写作中的革新作用，以下哪些说法是错误的？',o:['提高写作效率','增强图片生成能力','提升内容质量','个性化输出','改善语音识别效果'],a:'BE',e:'B和E是错误说法：大模型文案革新不包括图像生成能力(B)和语音识别(E)，这些不是文案写作的革新方向。'},
+{r:3,t:'m',id:'M15',q:'在大模型生成文案的过程中，哪种方法可以帮助提升文案的质量？',o:['反复迭代优化','使用单一提示词','结合数据分析','多轮生成内容','增加文案的长度'],a:'ACD',e:'提升文案质量：迭代优化(A)、结合数据分析(C)、多轮生成(D)。B"单一提示词"和E"增加长度"均不能有效提升质量。'},
+{r:3,t:'m',id:'M20',q:'提示词工程在哪些领域有广泛应用？',o:['信息检索','自然语言生成','文本分类','机器翻译','交互式应用'],a:'ABCDE',e:'提示词工程广泛应用于NLP各领域：信息检索、文本生成、分类、翻译、对话系统等，五项全对。'},
+{r:3,t:'m',id:'M23',q:'PAS模型的结构包括哪些部分？',o:['Problem（问题）','Agitate（激发）','Solution（解决方案）','Prove（证明）','Attention（注意）'],a:'ABC',e:'PAS三步：Problem(A)→Agitate(B)→Solution(C)。D"Prove"和E"Attention"不在PAS模型中（Attention属于AIDA）。'},
+{r:3,t:'m',id:'M27',q:'在提示词工程中，哪些类型的提示词可以用于优化文本生成？',o:['上下文指导类','情感调控类','行动指导类','风格和语气指导类','时间和地点指导类'],a:'ABCDE',e:'提示词类型多样，上下文(A)、情感(B)、行动(C)、风格(D)、时间地点(E)均是有效的提示词类型，五项全对。'},
+{r:3,t:'m',id:'M28',q:'在选择大模型时，哪些因素应该考虑？',o:['语言能力','用户评价','用户友好性','生成速度','成本和预算'],a:'ACDE',e:'选择大模型的关键因素：语言能力(A)、易用性(C)、生成速度(D)、成本(E)。B"用户评价"是参考，但不是标准化的选择因素。'},
+{r:3,t:'m',id:'M32',q:'在实施提示词工程时，以下哪些做法可能有助于提升效果？',o:['深入了解目标语言模型的工作原理','不断尝试和优化提示词设计','忽略用户的反馈和需求变化','结合多种类型的提示词进行组合使用','仅使用简单的、通用的提示词'],a:'ABD',e:'有效做法：了解模型原理(A)、持续优化(B)、组合多种提示词(D)。C"忽略反馈"和E"仅用简单通用提示词"均会降低效果。'},
+{r:3,t:'m',id:'M33',q:'人类在文案生成过程中需要负责哪些任务？',o:['方向设定和资料收集','生成初稿','质量把关','细节调整','内容扩展'],a:'ACDE',e:'人类职责：方向设定和资料收集(A)、质量把关(C)、细节调整(D)、内容扩展(E)。B"生成初稿"是AI的工作。'},
+{r:3,t:'m',id:'M36',q:'角色定位类提示词的作用有哪些？',o:['帮助模型理解用户意图','设定模型输出的长度','引导模型从特定角色视角思考问题','规定模型使用的语言风格'],a:'ACD',e:'角色定位类提示词：帮助理解意图(A)、引导角色视角思考(C)、规定语言风格(D)。B"设定输出长度"不是角色定位的功能。'},
+{r:3,t:'m',id:'M39',q:'关于生成式提示词，以下哪些描述是正确的？',o:['生成式提示词依赖于语言模型和条件概率','生成式提示词不考虑上下文信息','束搜索和采样策略在生成式提示词中起着重要作用','生成式提示词主要用于填充式补全任务'],a:'AC',e:'正确：依赖语言模型和条件概率(A)、束搜索和采样策略重要(C)。B错误：生成式提示词高度依赖上下文。D错误：填充式任务是完形填空类，生成式提示词用途更广。'},
+// Round 4: 倫理與社會影響
+{r:4,t:'s',id:'Q35',q:'生成式人工智能带来的伦理问题可能有哪些？',o:['使用者传播虚假或不实数据','提高工作效率','降低生产成本','增加信息透明度'],a:'A',e:'生成式AI的伦理风险主要是可能被用于生成和传播虚假信息。B/C/D均是正面价值，不是伦理问题。'},
+{r:4,t:'s',id:'Q39',q:'生成式人工智能可能带来的危害不包括以下哪一项？',o:['影响信息可信度','增加就业机会','引发个人隐私担忧','带来伦理问题'],a:'B',e:'"增加就业机会"是正面影响，不是危害。生成式AI的危害包括：影响信息可信度、隐私担忧、伦理问题。'},
+{r:4,t:'s',id:'Q56',q:'为了应对生成式人工智能带来的个人隐私保护担忧，需要采取什么措施？',o:['加强数据加密','制定法规和机制','减少人工智能应用','忽视服务条款中的隐私风险'],a:'B',e:'应对AI隐私担忧最根本的措施是制定完善的法规和机制。加密是技术手段之一，但法规才是系统性保障。'},
+// Round 4 多選
+{r:4,t:'m',id:'M29',q:'生成式人工智能可能带来哪些危害？',o:['影响信息可信度','引发个人隐私担忧','带来伦理问题','缩小贫富差距'],a:'ABC',e:'生成式AI危害：虚假信息影响可信度(A)、隐私泄露风险(B)、伦理问题(C)。D"缩小贫富差距"反而可能扩大，不是其危害。'},
+{r:4,t:'m',id:'M40',q:'应对生成式人工智能个人隐私保护担忧的措施有哪些？',o:['加强数据加密','制定法规和机制','提高公众意识','限制人工智能应用'],a:'ABC',e:'正确措施：数据加密(A)、法规机制(B)、公众意识(C)。D"限制AI应用"是过激且不现实的措施，不是正确应对方向。'}
+];
+const QUESTIONS = [...QR12, ...QR34];
+
+// ============================================================
+// STATE & HELPERS
+// ============================================================
+const state = {
+  screen: 'start',
+  round: 1,
+  qIndex: 0,
+  answered: false,
+  selected: [],
+  scores: {1:0, 2:0, 3:0, 4:0},
+  totals: {1:26, 2:34, 3:35, 4:5},
+  wrong: [],
+  wrongBank: [], // 歷史累積錯題庫（跨輪次/跨長期保存）
+  skipped: [], // 跳過的題目列表 {round, qIndex, id, q}
+  paused: false, // 計時器暫停狀態
+  practiceMode: 'all', // 'all' 或 'wrong' 練習模式
+  reviewingSkipped: false, // 是否正在回補跳過的題目
+  timer: {interval:null, roundStart:0, elapsed:{1:0,2:0,3:0,4:0}},
+  questionHistory: {}, // 已答題目記錄 {q.id: {selected: [], isCorrect: boolean}}
+  getProgress() {
+    let done = 0;
+    for(let r=1; r<this.round; r++) done += this.totals[r];
+    done += this.qIndex;
+    return Math.min(100, Math.round(done / 100 * 100));
+  }
+};
+
+const roundTitles = {
+  1: 'AIGC基礎概念 + 數據安全',
+  2: '核心算法模型',
+  3: '提示詞工程 + 文案生成',
+  4: '倫理與社會影響 + 回補'
+};
+const roundTimes = {1:15, 2:20, 3:15, 4:10};
+
+function getRoundQuestions(r) {
+  return QUESTIONS.filter(q => q.r === r);
+}
+function getRoundTitle(r) { return roundTitles[r]; }
+function getRoundTime(r) { return roundTimes[r]; }
+
+// ============================================================
+// TIMER FUNCTIONS
+// ============================================================
+function startTimer() {
+  // 清除可能存在的舊計時器
+  if (state.timer.interval) {
+    clearInterval(state.timer.interval);
+    state.timer.interval = null;
+  }
+  state.timer.roundStart = Date.now();
+  state.timer.interval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - state.timer.roundStart) / 1000);
+    state.timer.elapsed[state.round] = elapsed;
+    updateTimerDisplay(elapsed);
+  }, 1000);
+}
+
+function updateTimerDisplay(elapsed) {
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+  const el = document.getElementById('hdr-timer');
+  el.textContent = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+  // 只有在正常模式才顯示超時警告
+  if (state.practiceMode === 'all' && roundTimes[state.round]) {
+    const target = roundTimes[state.round] * 60;
+    if (elapsed > target) el.classList.add('warn');
+    else el.classList.remove('warn');
+  } else {
+    el.classList.remove('warn');
+  }
+}
+
+function stopTimer() {
+  if (state.timer.interval) {
+    clearInterval(state.timer.interval);
+    state.timer.interval = null;
+  }
+  state.timer.elapsed[state.round] = Math.floor((Date.now() - state.timer.roundStart) / 1000);
+}
+
+function updateProgress(pct) {
+  document.getElementById('prog-bar').style.width = pct + '%';
+}
+
+// ============================================================
+// RENDER FUNCTIONS
+// ============================================================
+function renderStart() {
+  const savedProgress = loadProgress();
+  const hasProgress = savedProgress && savedProgress.round !== undefined && savedProgress.qIndex !== undefined;
+  let continueBtnHtml = '';
+  if (hasProgress) {
+    const roundQ = savedProgress.qIndex + 1;
+    continueBtnHtml = `
+      <div class="tip-box" style="margin-bottom:16px">
+        📌 發現上次練習記錄：第${savedProgress.round}輪 第${roundQ}題
+      </div>
+      <button class="btn btn-outline btn-full" onclick="continueProgress()">繼續上次練習</button>`;
+  }
+  const html = `
+    <div class="start-hero">
+      <h1>2026 AIGC初級 刷題練習</h1>
+      <p>共100題（單選60題、多選40題），分4輪完成</p>
+    </div>
+    ${continueBtnHtml}
+    <div class="round-table">
+      <table>
+        <thead><tr><th>輪次</th><th>主題</th><th>題數</th><th>建議時間</th></tr></thead>
+        <tbody>
+          <tr><td><span class="tag tag-1">第一輪</span></td><td>AIGC基礎概念 + 數據安全</td><td>26題</td><td>15分鐘</td></tr>
+          <tr><td><span class="tag tag-2">第二輪</span></td><td>核心算法模型</td><td>34題</td><td>20分鐘</td></tr>
+          <tr><td><span class="tag tag-3">第三輪</span></td><td>提示詞工程 + 文案生成</td><td>35題</td><td>15分鐘</td></tr>
+          <tr><td><span class="tag tag-4">第四輪</span></td><td>倫理與社會影響 + 回補</td><td>5題</td><td>10分鐘</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="text-align:center;margin-top:20px">
+      <button class="btn btn-pri" onclick="startRound(1)">開始新練習</button>
+      <button class="btn btn-outline" style="margin-left:8px" onclick="showShuffleDialog()">🎲 隨機抽題</button>
+      ${state.wrongBank.length > 0 ? `<button class="btn btn-outline" style="margin-left:8px;border-color:#ef4444;color:#ef4444" onclick="renderWrongReview()">📖 錯題回看 (${state.wrongBank.length})</button>` : ''}
+    </div>`;
+  document.getElementById('main').innerHTML = html;
+  document.getElementById('hdr-pause').style.display = 'none';
+  document.getElementById('side-actions').classList.remove('show');
+}
+
+function renderQuestion() {
+  const rqs = getRoundQuestions(state.round);
+  const q = rqs[state.qIndex];
+  const numInRound = state.qIndex + 1;
+  const typeBadge = q.t === 's' ? 'badge-s' : 'badge-m';
+  const typeLabel = q.t === 's' ? '單選' : '多選';
+  const letters = ['A','B','C','D','E'];
+
+  // 檢查是否已答過此題
+  const history = state.questionHistory[q.id];
+
+  let html = '';
+  if (state.qIndex === 0) {
+    html += `
+      <div class="round-banner">
+        <div>
+          <h2>第${['一','二','三','四'][state.round-1]}輪</h2>
+          <p>${getRoundTitle(state.round)}</p>
+        </div>
+        <div class="round-stats">
+          <div class="stat-chip"><span>${state.totals[state.round]}</span>題</div>
+          <div class="stat-chip"><span>${getRoundTime(state.round)}</span>分鐘</div>
+        </div>
+      </div>`;
+  }
+
+  html += `
+    <div class="q-card">
+      <div class="q-meta">
+        <span class="q-num">${state.round}-${numInRound}</span>
+        <span class="q-type-badge ${typeBadge}">${typeLabel}</span>
+        <span class="q-orig">〔原${q.id}〕</span>
+      </div>
+      <div class="q-text">${q.q}</div>
+      <div class="opts">
+        ${q.o.map((opt, i) => {
+          const letter = letters[i];
+          const sel = history ? history.selected.includes(letter) : state.selected.includes(letter);
+          let extraClass = '';
+          if (history) {
+            const correctAns = q.a.split('');
+            if (correctAns.includes(letter)) extraClass = ' correct';
+            else if (history.selected.includes(letter)) extraClass = ' wrong';
+          } else if (sel) {
+            extraClass = ' selected';
+          }
+          const onclick = history ? '' : ` onclick="toggleOption('${letter}')"`;
+          return `<button class="opt${extraClass}${history ? ' opt-disabled' : ''}"${onclick}>
+            <span class="opt-letter">${letter}</span>
+            <span class="opt-text">${opt}</span>
+          </button>`;
+        }).join('')}
+      </div>`;
+
+  if (!history) {
+    html += `
+      ${q.t === 'm' ? '<div class="multi-hint">⚠️ 本題為多選題，請選擇至少兩個答案</div>' : ''}
+      ${q.t === 'm' && state.selected.length > 0 ? '<button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="clearSelection()">清除選擇</button>' : ''}
+      <div class="action-row">
+        <button class="btn btn-outline btn-sm" onclick="skipQuestion()">跳過此題</button>
+        <button class="btn btn-pri btn-sm" onclick="submitAnswer()" ${state.selected.length === 0 ? 'disabled' : ''}>
+          確定答案
+        </button>
+      </div>`;
+  } else {
+    // 已答過，顯示反饋（只讀模式）
+    const fbClass = history.isCorrect ? 'fb-ok' : 'fb-err';
+    const fbTitle = history.isCorrect ? '✓ 正確' : '✗ 錯誤';
+    const needsExpand = q.e.length > 80;
+    html += `
+      <div class="feedback show ${fbClass}">
+        <div class="fb-title">${fbTitle}</div>
+        <div class="fb-exp${needsExpand ? '' : ' expanded'}" id="fb-exp" style="max-height:none">${q.e}</div>
+        <div class="fb-ans">正確答案：${q.a}</div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-outline btn-sm" onclick="nextQuestion()">下一題 →</button>
+      </div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('main').innerHTML = html;
+}
+
+function checkAnswer(selected) {
+  const rqs = getRoundQuestions(state.round);
+  const q = rqs[state.qIndex];
+  const userAns = selected.sort().join('');
+  return userAns === q.a;
+}
+
+function renderFeedback(isCorrect) {
+  const rqs = getRoundQuestions(state.round);
+  const q = rqs[state.qIndex];
+  const correctAns = q.a.split('');
+  const userAns = state.selected;
+  const letters = ['A','B','C','D','E'];
+
+  document.querySelectorAll('.opt').forEach((btn, i) => {
+    const letter = letters[i];
+    btn.classList.add('opt-disabled');
+    btn.onclick = null;
+    if (correctAns.includes(letter)) btn.classList.add('correct');
+    if (userAns.includes(letter) && !correctAns.includes(letter)) btn.classList.add('wrong');
+    if (!userAns.includes(letter) && correctAns.includes(letter)) btn.classList.add('missed');
+  });
+
+  // 移除已存在的反饋區塊，避免重複插入
+  const existingFb = document.querySelector('.feedback');
+  if (existingFb) existingFb.remove();
+
+  const fbClass = isCorrect ? 'fb-ok' : 'fb-err';
+  const fbTitle = isCorrect ? '✓ 正確' : '✗ 錯誤';
+  const needsExpand = q.e.length > 80;
+  const fbHtml = `
+    <div class="feedback show ${fbClass}">
+      <div class="fb-title">${fbTitle}</div>
+      <div class="fb-exp" id="fb-exp">${q.e}</div>
+      ${needsExpand ? '<div class="fb-exp-toggle" onclick="toggleExplanation()">展開解析</div>' : ''}
+      <div class="fb-ans">正確答案：${q.a}</div>
+    </div>`;
+  document.querySelector('.action-row').insertAdjacentHTML('beforebegin', fbHtml);
+
+  // 根據是否在回補模式顯示不同按鈕
+  if (state.reviewingSkipped) {
+    document.querySelector('.action-row').innerHTML = `
+      <button class="btn btn-outline btn-sm" onclick="returnToRoundSummary()">返回輪次總結</button>`;
+  } else {
+    document.querySelector('.action-row').innerHTML = `
+      <button class="btn btn-outline btn-sm" onclick="nextQuestion()">下一題 →</button>`;
+  }
+}
+
+function renderRoundSummary() {
+  const score = state.scores[state.round];
+  const total = state.totals[state.round];
+  const pct = Math.round(score / total * 100);
+  const gradeClass = pct >= 90 ? 'grade-a' : pct >= 80 ? 'grade-b' : pct >= 70 ? 'grade-c' : 'grade-d';
+  const gradeLabel = pct >= 90 ? '優秀' : pct >= 80 ? '良好' : pct >= 70 ? '合格' : '待加強';
+  const roundWrong = state.wrong.filter(w => w.round === state.round);
+
+  const html = `
+    <div class="summary-card">
+      <h3>第${['一','二','三','四'][state.round-1]}輪完成</h3>
+      <div class="score-big">
+        <div class="num">${score}</div><div class="denom">/ ${total}</div>
+        <div class="pct">${pct}%</div>
+        <div class="score-grade ${gradeClass}">${gradeLabel}</div>
+      </div>
+      <div class="section-title">錯題回顧</div>
+      ${roundWrong.length === 0 ? '<div class="empty-msg">🎉 本輪全對！沒有錯題</div>' :
+        `<div class="wrong-list">
+          ${roundWrong.map(w => `
+            <div class="wrong-item">
+              <div class="wi-q">${w.q}</div>
+              <div class="wi-ans">正確答案：${w.correctAns}</div>
+              <div class="wi-mine">你的答案：${w.userAns}</div>
+            </div>
+          `).join('')}
+        </div>`
+      }
+      ${(() => {
+        const roundSkipped = state.skipped.filter(s => s.round === state.round);
+        if (roundSkipped.length === 0) return '';
+        return `
+          <div class="section-title">跳過題目</div>
+          <div class="skip-list">
+            ${roundSkipped.map((s, i) => `
+              <div class="skip-item">
+                <div class="si-q">${s.q}</div>
+                <button class="btn btn-outline btn-sm" onclick="goToSkippedQuestion(${state.round}, ${s.qIndex})">回補此題</button>
+              </div>
+            `).join('')}
+          </div>`;
+      })()}
+      <div style="text-align:center;margin-top:16px">
+        ${state.round < 4 ?
+          `<button class="btn btn-pri" onclick="startRound(${state.round + 1})">進入下一輪</button>` :
+          `<button class="btn btn-ok btn-full" onclick="renderFinal()">查看最終結果</button>`
+        }
+      </div>
+    </div>`;
+  document.getElementById('main').innerHTML = html;
+  updateProgress(state.round * 25);
+}
+
+function renderFinal() {
+  stopTimer();
+  const totalScore = Object.values(state.scores).reduce((a,b) => a+b, 0);
+  const totalQ = Object.values(state.totals).reduce((a,b) => a+b, 0);
+  const pct = Math.round(totalScore / totalQ * 100);
+  const totalTime = Object.values(state.timer.elapsed).reduce((a,b) => a+b, 0);
+  const mins = Math.floor(totalTime / 60);
+  const secs = totalTime % 60;
+  const hasWrong = state.wrong.length > 0;
+
+  // 顯示錯題專練按鈕
+  const wrongPracticeBtn = hasWrong ?
+    `<button class="btn btn-ok btn-full" style="margin-top:8px" onclick="startWrongPractice()">重練錯題 (${state.wrong.length}題)</button>` : '';
+
+  const html = `
+    <div class="final-hero">
+      <h2>🎉 刷題完成！</h2>
+      <p>最終得分：${totalScore} / ${totalQ} = ${pct}%</p>
+      <p>總用時：${mins}分${secs}秒</p>
+      ${!hasWrong ? '<p style="color:var(--ok)">🏆 全對！恭喜你！</p>' : ''}
+    </div>
+    <div class="summary-card">
+      <h3>各輪成績</h3>
+      <table class="breakdown-table">
+        <thead><tr><th>輪次</th><th>主題</th><th>得分</th><th>正確率</th><th>進度</th></tr></thead>
+        <tbody>
+          ${[1,2,3,4].map(r => {
+            const s = state.scores[r];
+            const t = state.totals[r];
+            const rp = Math.round(s/t*100);
+            return `<tr>
+              <td><span class="tag tag-${r}">第${['一','二','三','四'][r-1]}輪</span></td>
+              <td>${getRoundTitle(r)}</td>
+              <td>${s}/${t}</td>
+              <td>${rp}%</td>
+              <td><div class="mini-bar"><div class="mini-bar-fill" style="width:${rp}%"></div></div></td>
+            </tr>`;
+          }).join('')}
+          <tr>
+            <td colspan="2">總計</td>
+            <td>${totalScore}/${totalQ}</td>
+            <td>${pct}%</td>
+            <td><div class="mini-bar"><div class="mini-bar-fill" style="width:${pct}%"></div></div></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="text-align:center;margin-top:16px">
+        <button class="btn btn-outline" onclick="restartQuiz()">重新開始</button>
+        ${wrongPracticeBtn}
+      </div>
+    </div>`;
+  document.getElementById('main').innerHTML = html;
+  document.getElementById('hdr-pause').style.display = 'none';
+  document.getElementById('side-actions').classList.remove('show');
+  updateProgress(100);
+}
+
+// ============================================================
+// EVENT HANDLERS
+// ============================================================
+function toggleOption(letter) {
+  const rqs = getRoundQuestions(state.round);
+  const q = rqs[state.qIndex];
+  if (q.t === 's') {
+    state.selected = [letter];
+  } else {
+    const idx = state.selected.indexOf(letter);
+    if (idx >= 0) state.selected.splice(idx, 1);
+    else state.selected.push(letter);
+  }
+  renderQuestion();
+}
+
+function clearSelection() {
+  state.selected = [];
+  renderQuestion();
+}
+
+function toggleExplanation() {
+  const expEl = document.getElementById('fb-exp');
+  const toggleEl = document.querySelector('.fb-exp-toggle');
+  if (expEl.classList.contains('expanded')) {
+    expEl.classList.remove('expanded');
+    toggleEl.textContent = '展開解析';
+  } else {
+    expEl.classList.add('expanded');
+    toggleEl.textContent = '收起解析';
+  }
+}
+
+function togglePause() {
+  state.paused = !state.paused;
+  const pauseBtn = document.getElementById('hdr-pause');
+  const pauseOverlay = document.getElementById('pause-overlay');
+  if (state.paused) {
+    clearInterval(state.timer.interval);
+    state.timer.interval = null;
+    pauseBtn.textContent = '繼續';
+    pauseOverlay.classList.add('show');
+  } else {
+    // 根據練習模式選擇正確的 elapsed key
+    let elapsedKey;
+    if (state.practiceMode === 'wrong') elapsedKey = 'wrong';
+    else if (state.practiceMode === 'shuffle') elapsedKey = 'shuffle';
+    else elapsedKey = state.round;
+    state.timer.roundStart = Date.now() - (state.timer.elapsed[elapsedKey] || 0) * 1000;
+    state.timer.interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - state.timer.roundStart) / 1000);
+      state.timer.elapsed[elapsedKey] = elapsed;
+      updateTimerDisplay(elapsed);
+    }, 1000);
+    pauseBtn.textContent = '暫停';
+    pauseOverlay.classList.remove('show');
+  }
+}
+
+// ============================================================
+// PROGRESS SAVE/LOAD
+// ============================================================
+function saveProgress() {
+  const data = {
+    round: state.round,
+    qIndex: state.qIndex,
+    scores: state.scores,
+    wrong: state.wrong,
+    skipped: state.skipped,
+    elapsed: state.timer.elapsed,
+    questionHistory: state.questionHistory
+  };
+  localStorage.setItem('aigc_quiz_progress', JSON.stringify(data));
+}
+
+function loadProgress() {
+  const saved = localStorage.getItem('aigc_quiz_progress');
+  if (!saved) return null;
+  try {
+    return JSON.parse(saved);
+  } catch (e) {
+    return null;
+  }
+}
+
+function clearProgress() {
+  localStorage.removeItem('aigc_quiz_progress');
+}
+
+// ============================================================
+// WRONG-BANK (歷史錯題庫持久化)
+// ============================================================
+function loadWrongBank() {
+  const saved = localStorage.getItem('aigc_quiz_wrongbank');
+  if (!saved) return [];
+  try { return JSON.parse(saved) || []; } catch(e) { return []; }
+}
+function saveWrongBank() {
+  localStorage.setItem('aigc_quiz_wrongbank', JSON.stringify(state.wrongBank));
+}
+function addToWrongBank(id, userAns) {
+  const q = QUESTIONS.find(x => x.id === id);
+  if (!q) return;
+  // 去重：同 id 則更新最新錢誤紀錄
+  const idx = state.wrongBank.findIndex(w => w.id === id);
+  const item = {id: q.id, round: q.r, t: q.t, q: q.q, o: q.o, a: q.a, e: q.e, userAns: userAns, addedAt: Date.now()};
+  if (idx >= 0) state.wrongBank[idx] = item;
+  else state.wrongBank.push(item);
+  saveWrongBank();
+}
+function removeFromWrongBank(id) {
+  const idx = state.wrongBank.findIndex(w => w.id === id);
+  if (idx >= 0) {
+    state.wrongBank.splice(idx, 1);
+    saveWrongBank();
+  }
+}
+function clearWrongBank() {
+  state.wrongBank = [];
+  saveWrongBank();
+}
+
+function continueProgress() {
+  const data = loadProgress();
+  if (!data) return;
+  state.round = data.round;
+  state.qIndex = data.qIndex;
+  state.scores = data.scores;
+  state.wrong = data.wrong;
+  state.skipped = data.skipped || [];
+  state.timer.elapsed = data.elapsed;
+  state.questionHistory = data.questionHistory || {};
+  state.selected = [];
+  state.answered = false;
+  state.paused = false;
+  state.practiceMode = 'all'; // 重置為正常模式
+  document.getElementById('hdr-pause').style.display = 'inline-block';
+  document.getElementById('hdr-pause').textContent = '暫停';
+  document.getElementById('side-actions').classList.add('show');
+  document.getElementById('side-nav-btn').style.display = 'inline-flex';
+  // 恢復計時器
+  state.timer.roundStart = Date.now() - state.timer.elapsed[state.round] * 1000;
+  state.timer.interval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - state.timer.roundStart) / 1000);
+    state.timer.elapsed[state.round] = elapsed;
+    updateTimerDisplay(elapsed);
+  }, 1000);
+  renderQuestion();
+  updateProgress(state.getProgress());
+}
+
+// ============================================================
+// WRONG QUESTION PRACTICE
+// ============================================================
+function startWrongPractice() {
+  if (state.wrong.length === 0) return;
+  stopTimer(); // 先停止現有計時器
+  // 設置錯題專練模式
+  state.practiceMode = 'wrong';
+  state.wrongPracticeIndex = 0;
+  state.wrongPracticeScore = 0;
+  state.wrongPracticeTotal = state.wrong.length;
+  state.selected = [];
+  state.answered = false;
+  state.paused = false;
+  state.questionHistory = {}; // 錯題專練重置歷史
+  // 顯示按鈕
+  document.getElementById('hdr-pause').style.display = 'inline-block';
+  document.getElementById('hdr-pause').textContent = '暫停';
+  document.getElementById('side-actions').classList.add('show');
+  document.getElementById('side-nav-btn').style.display = 'none'; // 錯題專練不顯示導航按鈕
+  // 開始計時
+  state.timer.elapsed['wrong'] = 0;
+  state.timer.roundStart = Date.now();
+  state.timer.interval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - state.timer.roundStart) / 1000);
+    state.timer.elapsed['wrong'] = elapsed;
+    updateTimerDisplay(elapsed);
+  }, 1000);
+  renderWrongQuestion();
+}
+
+function renderWrongQuestion() {
+  if (state.wrongPracticeIndex >= state.wrong.length) {
+    renderWrongPracticeSummary();
+    return;
+  }
+  const wrongItem = state.wrong[state.wrongPracticeIndex];
+  // 找到原題目
+  const q = QUESTIONS.find(q => q.id === wrongItem.id);
+  if (!q) {
+    state.wrongPracticeIndex++;
+    renderWrongQuestion();
+    return;
+  }
+  const typeBadge = q.t === 's' ? 'badge-s' : 'badge-m';
+  const typeLabel = q.t === 's' ? '單選' : '多選';
+  const letters = ['A','B','C','D','E'];
+  const numInRound = state.wrongPracticeIndex + 1;
+
+  let html = `
+    <div class="round-banner">
+      <div>
+        <h2>錯題專練</h2>
+        <p>共${state.wrong.length}題錯題</p>
+      </div>
+      <div class="round-stats">
+        <div class="stat-chip"><span>${numInRound}</span>/ ${state.wrong.length}</div>
+      </div>
+    </div>
+    <div class="q-card">
+      <div class="q-meta">
+        <span class="q-num">錯-${numInRound}</span>
+        <span class="q-type-badge ${typeBadge}">${typeLabel}</span>
+        <span class="q-orig">〔原${q.id}〕</span>
+      </div>
+      <div class="q-text">${q.q}</div>
+      <div class="opts">
+        ${q.o.map((opt, i) => {
+          const letter = letters[i];
+          const sel = state.selected.includes(letter);
+          return `<button class="opt${sel ? ' selected' : ''}" onclick="toggleWrongOption('${letter}')">
+            <span class="opt-letter">${letter}</span>
+            <span class="opt-text">${opt}</span>
+          </button>`;
+        }).join('')}
+      </div>
+      ${q.t === 'm' ? '<div class="multi-hint">⚠️ 本題為多選題，請選擇至少兩個答案</div>' : ''}
+      ${q.t === 'm' && state.selected.length > 0 ? '<button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="clearWrongSelection()">清除選擇</button>' : ''}
+      <div class="action-row">
+        <button class="btn btn-pri btn-sm" onclick="submitWrongAnswer()" ${state.selected.length === 0 ? 'disabled' : ''}>
+          確定答案
+        </button>
+      </div>
+    </div>`;
+  document.getElementById('main').innerHTML = html;
+}
+
+function toggleWrongOption(letter) {
+  const wrongItem = state.wrong[state.wrongPracticeIndex];
+  const q = QUESTIONS.find(q => q.id === wrongItem.id);
+  if (!q) return;
+  if (q.t === 's') {
+    state.selected = [letter];
+  } else {
+    const idx = state.selected.indexOf(letter);
+    if (idx >= 0) state.selected.splice(idx, 1);
+    else state.selected.push(letter);
+  }
+  renderWrongQuestion();
+}
+
+function clearWrongSelection() {
+  state.selected = [];
+  renderWrongQuestion();
+}
+
+function submitWrongAnswer() {
+  if (state.selected.length === 0) return;
+  const wrongItem = state.wrong[state.wrongPracticeIndex];
+  const q = QUESTIONS.find(q => q.id === wrongItem.id);
+  if (!q) return;
+  const userAns = state.selected.sort().join('');
+  const isCorrect = userAns === q.a;
+  state.answered = true;
+  if (isCorrect) {
+    state.wrongPracticeScore++;
+    // 從錯題列表中移除已答對的題目
+    const wrongIdx = state.wrong.findIndex(w => w.id === wrongItem.id);
+    if (wrongIdx >= 0) state.wrong.splice(wrongIdx, 1);
+    // 同步從歷史錯題庫移除（已掌握）
+    removeFromWrongBank(wrongItem.id);
+    // 索引減1，因為數組縮短了
+    state.wrongPracticeIndex--;
+  }
+  renderWrongFeedback(isCorrect, q, wrongItem);
+}
+
+function renderWrongFeedback(isCorrect, q, wrongItem) {
+  const correctAns = q.a.split('');
+  const userAns = state.selected;
+  const letters = ['A','B','C','D','E'];
+
+  document.querySelectorAll('.opt').forEach((btn, i) => {
+    const letter = letters[i];
+    btn.classList.add('opt-disabled');
+    btn.onclick = null;
+    if (correctAns.includes(letter)) btn.classList.add('correct');
+    if (userAns.includes(letter) && !correctAns.includes(letter)) btn.classList.add('wrong');
+    if (!userAns.includes(letter) && correctAns.includes(letter)) btn.classList.add('missed');
+  });
+
+  // 移除已存在的反饋區塊，避免重複插入
+  const existingFb = document.querySelector('.feedback');
+  if (existingFb) existingFb.remove();
+
+  const fbClass = isCorrect ? 'fb-ok' : 'fb-err';
+  const fbTitle = isCorrect ? '✓ 正確' : '✗ 錯誤';
+  const needsExpand = q.e.length > 80;
+  const fbHtml = `
+    <div class="feedback show ${fbClass}">
+      <div class="fb-title">${fbTitle}</div>
+      <div class="fb-exp" id="fb-exp">${q.e}</div>
+      ${needsExpand ? '<div class="fb-exp-toggle" onclick="toggleExplanation()">展開解析</div>' : ''}
+      <div class="fb-ans">正確答案：${q.a} | 上次答案：${wrongItem.userAns}</div>
+    </div>`;
+  document.querySelector('.action-row').insertAdjacentHTML('beforebegin', fbHtml);
+  document.querySelector('.action-row').innerHTML = `
+    <button class="btn btn-outline btn-sm" onclick="nextWrongQuestion()">下一題 →</button>`;
+}
+
+function nextWrongQuestion() {
+  state.wrongPracticeIndex++;
+  state.selected = [];
+  state.answered = false;
+  if (state.wrongPracticeIndex >= state.wrong.length || state.wrong.length === 0) {
+    stopTimer();
+    renderWrongPracticeSummary();
+  } else {
+    renderWrongQuestion();
+  }
+}
+
+function renderWrongPracticeSummary() {
+  stopTimer();
+  const score = state.wrongPracticeScore;
+  const total = state.wrongPracticeTotal;
+  const pct = Math.round(score / total * 100);
+  const gradeClass = pct >= 90 ? 'grade-a' : pct >= 80 ? 'grade-b' : pct >= 70 ? 'grade-c' : 'grade-d';
+  const gradeLabel = pct >= 90 ? '優秀' : pct >= 80 ? '良好' : pct >= 70 ? '合格' : '待加強';
+  const time = state.timer.elapsed['wrong'] || 0;
+  const mins = Math.floor(time / 60);
+  const secs = time % 60;
+
+  const html = `
+    <div class="final-hero">
+      <h2>錯題專練完成！</h2>
+      <p>得分：${score} / ${total} = ${pct}%</p>
+      <p>用時：${mins}分${secs}秒</p>
+      ${score === total ? '<p style="color:var(--ok)">🏆 全對！恭喜你！</p>' : ''}
+    </div>
+    <div class="summary-card">
+      <div class="score-big">
+        <div class="num">${score}</div><div class="denom">/ ${total}</div>
+        <div class="pct">${pct}%</div>
+        <div class="score-grade ${gradeClass}">${gradeLabel}</div>
+      </div>
+      <div style="text-align:center;margin-top:16px">
+        <button class="btn btn-outline" onclick="restartQuiz()">重新開始全部練習</button>
+        ${score < total ? `<button class="btn btn-ok btn-full" style="margin-top:8px" onclick="startWrongPractice()">再練一次錯題</button>` : ''}
+      </div>
+    </div>`;
+  document.getElementById('main').innerHTML = html;
+  document.getElementById('hdr-pause').style.display = 'none';
+  document.getElementById('hdr-timer').textContent = '--:--';
+}
+
+function submitAnswer() {
+  if (state.selected.length === 0) return;
+  const rqs = getRoundQuestions(state.round);
+  const q = rqs[state.qIndex];
+  const isCorrect = checkAnswer(state.selected);
+  state.answered = true;
+
+  // 如果是回補跳過的題目，從跳過列表中移除
+  if (state.reviewingSkipped) {
+    const skipIdx = state.skipped.findIndex(s => s.round === state.round && s.qIndex === state.qIndex);
+    if (skipIdx >= 0) state.skipped.splice(skipIdx, 1);
+  }
+
+  // 記錄答題歷史，防止通過導航重複作答
+  if (!state.questionHistory[q.id]) {
+    state.questionHistory[q.id] = {
+      selected: [...state.selected].sort(),
+      isCorrect: isCorrect
+    };
+    if (isCorrect) {
+      state.scores[state.round]++;
+    } else {
+      state.wrong.push({
+        round: state.round,
+        id: q.id,
+        q: q.q,
+        userAns: state.selected.sort().join(''),
+        correctAns: q.a
+      });
+      addToWrongBank(q.id, state.selected.sort().join('')); // 同步歸檔到歷史錯題庫
+    }
+  }
+  saveProgress(); // 保存進度
+  renderFeedback(isCorrect);
+  updateProgress(state.getProgress());
+}
+
+function nextQuestion() {
+  const rqs = getRoundQuestions(state.round);
+  state.qIndex++;
+  state.selected = [];
+  state.answered = false;
+  saveProgress(); // 保存進度
+  if (state.qIndex >= rqs.length) {
+    stopTimer();
+    renderRoundSummary();
+  } else {
+    renderQuestion();
+  }
+}
+
+function returnToRoundSummary() {
+  // 重置回補標記並返回輪次總結
+  state.reviewingSkipped = false;
+  state.selected = [];
+  state.answered = false;
+  renderRoundSummary();
+}
+
+function skipQuestion() {
+  const rqs = getRoundQuestions(state.round);
+  const q = rqs[state.qIndex];
+  // 檢查是否已經跳過，避免重複添加
+  const alreadySkipped = state.skipped.some(s => s.round === state.round && s.qIndex === state.qIndex);
+  if (!alreadySkipped) {
+    state.skipped.push({
+      round: state.round,
+      qIndex: state.qIndex,
+      id: q.id,
+      q: q.q
+    });
+  }
+  // 清除選擇並進入下一題
+  state.selected = [];
+  state.qIndex++;
+  saveProgress(); // 保存進度
+  if (state.qIndex >= rqs.length) {
+    stopTimer();
+    renderRoundSummary();
+  } else {
+    renderQuestion();
+  }
+  updateProgress(state.getProgress());
+}
+
+function goToSkippedQuestion(round, qIndex) {
+  state.round = round;
+  state.qIndex = qIndex;
+  state.selected = [];
+  state.answered = false;
+  state.reviewingSkipped = true; // 設置回補模式標記
+  // 從回補進入，不啟動計時器（輪次已結束，只是回補練習）
+  // 隱藏暫停按鈕（計時器不運行），顯示導航按鈕
+  document.getElementById('hdr-pause').style.display = 'none';
+  document.getElementById('side-actions').classList.add('show');
+  document.getElementById('side-nav-btn').style.display = 'inline-flex';
+  document.getElementById('hdr-timer').textContent = '--:--';
+  renderQuestion();
+}
+
+function startRound(r) {
+  // 從第一輪開始時，重置所有狀態（全新練習）
+  if (r === 1) {
+    state.scores = {1:0, 2:0, 3:0, 4:0};
+    state.wrong = [];
+    state.skipped = [];
+    state.questionHistory = {};
+    state.timer.elapsed = {1:0, 2:0, 3:0, 4:0};
+    state.reviewingSkipped = false;
+    state.practiceMode = 'all';
+  }
+  state.round = r;
+  state.qIndex = 0;
+  state.selected = [];
+  state.answered = false;
+  state.paused = false;
+  clearProgress(); // 開始新練習時清除舊進度
+  document.getElementById('hdr-pause').style.display = 'inline-block';
+  document.getElementById('hdr-pause').textContent = '暫停';
+  document.getElementById('side-actions').classList.add('show');
+  document.getElementById('side-nav-btn').style.display = 'inline-flex';
+  startTimer();
+  renderQuestion();
+  updateProgress(state.getProgress());
+}
+
+// 返回首頁（從任何練習模式）
+function backToHome() {
+  let confirmMsg = '';
+  if (state.practiceMode === 'all') {
+    if (state.round > 1 || state.qIndex > 0) {
+      confirmMsg = '返回首頁？當前進度將自動保存，下次可繼續刷題。';
+    }
+  } else if (state.practiceMode === 'wrong') {
+    confirmMsg = '返回首頁將結束當前錯題專練，確定？';
+  } else if (state.practiceMode === 'shuffle') {
+    confirmMsg = '返回首頁將結束當前隨機抽題，進度不會保存，確定？';
+  } else if (state.practiceMode === 'review') {
+    // 錯題回看清單頁不需要確認
+    confirmMsg = '';
+  }
+  if (confirmMsg && !confirm(confirmMsg)) return;
+  // 主練習模式下保存進度
+  if (state.practiceMode === 'all' && (state.round > 1 || state.qIndex > 0)) {
+    saveProgress();
+  }
+  // 停止計時器並重置 UI
+  stopTimer();
+  closeNavPanel();
+  state.paused = false;
+  state.practiceMode = 'all';
+  state.reviewingSkipped = false;
+  state.selected = [];
+  state.answered = false;
+  // 重置 shuffle 暫存
+  state.shuffleQuestions = null;
+  state.shuffleIndex = 0;
+  state.shuffleHistory = {};
+  document.getElementById('hdr-pause').style.display = 'none';
+  document.getElementById('side-actions').classList.remove('show');
+  document.getElementById('side-nav-btn').style.display = 'inline-flex';
+  document.getElementById('hdr-timer').textContent = '--:--';
+  document.getElementById('hdr-timer').classList.remove('warn');
+  state.screen = 'start';
+  renderStart();
+}
+
+function restartQuiz() {
+  state.screen = 'start';
+  state.round = 1;
+  state.qIndex = 0;
+  state.selected = [];
+  state.answered = false;
+  state.scores = {1:0, 2:0, 3:0, 4:0};
+  state.wrong = [];
+  state.skipped = [];
+  state.paused = false;
+  state.practiceMode = 'all';
+  state.reviewingSkipped = false; // 重置回補標記
+  state.timer.elapsed = {1:0, 2:0, 3:0, 4:0};
+  state.questionHistory = {};
+  stopTimer();
+  clearProgress(); // 清除保存的進度
+  document.getElementById('hdr-timer').textContent = '--:--';
+  document.getElementById('hdr-timer').classList.remove('warn');
+  document.getElementById('hdr-pause').style.display = 'none';
+  document.getElementById('side-actions').classList.remove('show');
+  updateProgress(0);
+  renderStart();
+}
+
+// ============================================================
+// NAVIGATION PANEL
+// ============================================================
+function toggleNavPanel() {
+  const overlay = document.querySelector('.nav-overlay');
+  const panel = document.querySelector('.nav-panel');
+  const isShow = overlay.classList.contains('show');
+  if (isShow) {
+    overlay.classList.remove('show');
+    panel.classList.remove('show');
+    const searchInput = document.getElementById('nav-search');
+    if (searchInput) searchInput.value = '';
+  } else {
+    overlay.classList.add('show');
+    panel.classList.add('show');
+    renderNavGrid();
+  }
+}
+
+function closeNavPanel() {
+  document.querySelector('.nav-overlay').classList.remove('show');
+  document.querySelector('.nav-panel').classList.remove('show');
+  const searchInput = document.getElementById('nav-search');
+  if (searchInput) searchInput.value = '';
+}
+
+function renderNavGrid() {
+  // 渲染全部輪次作為目錄
+  let html = '';
+  for (let r = 1; r <= 4; r++) {
+    const rqs = getRoundQuestions(r);
+    if (rqs.length === 0) continue;
+    // 計算该輪狀態
+    const doneCount = rqs.filter(q => state.questionHistory[q.id]).length;
+    const wrongCount = rqs.filter(q => state.wrong.some(w => w.id === q.id)).length;
+    const isCurrentRound = r === state.round && state.practiceMode === 'all';
+    const roundLabel = `第${['一','二','三','四'][r-1]}輪`;
+    const canJump = state.practiceMode === 'all' ? 'true' : 'false';
+    html += `
+      <div class="nav-round-sec">
+        <div class="nav-round-head" onclick="jumpToRound(${r})">
+          <span>${roundLabel} · ${getRoundTitle(r)}${isCurrentRound ? ' ◀ 當前' : ''}</span>
+          <span class="rh-stat">${doneCount}/${rqs.length}${wrongCount ? ` · 錯${wrongCount}` : ''}</span>
+        </div>
+        <div class="nav-grid">`;
+    for (let i = 0; i < rqs.length; i++) {
+      const q = rqs[i];
+      const isCurrent = isCurrentRound && i === state.qIndex;
+      const isSkipped = state.skipped.some(s => s.round === r && s.qIndex === i);
+      const isWrong = state.wrong.some(w => w.round === r && w.id === q.id);
+      const isDone = state.questionHistory[q.id] !== undefined;
+      let btnClass = 'nav-btn';
+      if (isCurrent) btnClass += ' current';
+      else if (isWrong) btnClass += ' wrong';
+      else if (isSkipped) btnClass += ' skip';
+      else if (isDone) btnClass += ' done';
+      html += `<button class="${btnClass}" onclick="goToQuestion(${r}, ${i})" title="${q.id}">${i + 1}</button>`;
+    }
+    html += `</div></div>`;
+  }
+  const contentEl = document.getElementById('nav-content');
+  if (contentEl) contentEl.innerHTML = html;
+}
+
+function goToQuestion(round, index) {
+  // 在隨機/錯題模式下禁用跨輪次跳轉
+  if (state.practiceMode !== 'all') {
+    closeNavPanel();
+    return;
+  }
+  // 支援旧的單參數呼叫方式（向後兼容）
+  if (index === undefined) {
+    index = round;
+    round = state.round;
+  }
+  const rqs = getRoundQuestions(round);
+  if (index < 0 || index >= rqs.length) return;
+  // 如果要切換輪次，先處理計時器
+  if (round !== state.round) {
+    // 保存當前輪時間
+    if (state.timer.interval) {
+      state.timer.elapsed[state.round] = Math.floor((Date.now() - state.timer.roundStart) / 1000);
+      clearInterval(state.timer.interval);
+      state.timer.interval = null;
+    }
+    state.round = round;
+    // 重新啟動輪次計時器
+    state.timer.roundStart = Date.now() - (state.timer.elapsed[round] || 0) * 1000;
+    state.timer.interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - state.timer.roundStart) / 1000);
+      state.timer.elapsed[state.round] = elapsed;
+      updateTimerDisplay(elapsed);
+    }, 1000);
+  }
+  state.qIndex = index;
+  const q = rqs[index];
+  const history = state.questionHistory[q.id];
+  if (history) {
+    state.selected = [...history.selected];
+    state.answered = true;
+  } else {
+    state.selected = [];
+    state.answered = false;
+  }
+  state.reviewingSkipped = false; // 通過目錄跳轉時重置回補標記
+  closeNavPanel();
+  renderQuestion();
+  updateProgress(state.getProgress());
+}
+
+function jumpToRound(round) {
+  // 快掷：跳到指定輪次的第一題
+  goToQuestion(round, 0);
+}
+
+function searchQuestions(keyword) {
+  const kw = keyword.trim().toLowerCase();
+  if (!kw) {
+    renderNavGrid();
+    return;
+  }
+  // 全輪次搜索
+  let html = '<div class="nav-round-sec"><div class="nav-round-head" style="cursor:default"><span>搜索結果</span></div><div class="nav-grid">';
+  let count = 0;
+  for (let r = 1; r <= 4; r++) {
+    const rqs = getRoundQuestions(r);
+    rqs.forEach((q, index) => {
+      const matchId = q.id.toLowerCase().includes(kw);
+      const matchQ = q.q.toLowerCase().includes(kw);
+      if (matchId || matchQ) {
+        count++;
+        const isCurrent = r === state.round && index === state.qIndex && state.practiceMode === 'all';
+        const isSkipped = state.skipped.some(s => s.round === r && s.qIndex === index);
+        const isWrong = state.wrong.some(w => w.round === r && w.id === q.id);
+        const isDone = state.questionHistory[q.id] !== undefined;
+        let btnClass = 'nav-btn';
+        if (isCurrent) btnClass += ' current';
+        else if (isWrong) btnClass += ' wrong';
+        else if (isSkipped) btnClass += ' skip';
+        else if (isDone) btnClass += ' done';
+        html += `<button class="${btnClass}" onclick="goToQuestion(${r}, ${index})" title="${r}-${index+1} ${q.id}">${r}-${index+1}</button>`;
+      }
+    });
+  }
+  html += `</div></div>`;
+  if (count === 0) {
+    html = '<div style="text-align:center;color:var(--muted);padding:16px">無匹配結果</div>';
+  }
+  document.getElementById('nav-content').innerHTML = html;
+}
+
+// ============================================================
+// SHUFFLE (隨機抽題) MODE
+// ============================================================
+function showShuffleDialog() {
+  // 在主內容區顯示設定對話
+  const html = `
+    <div class="start-hero">
+      <h1>🎲 隨機抽題</h1>
+      <p>從 100 題題庫中隨機抽取題目，自我檢測營指數</p>
+    </div>
+    <div class="summary-card">
+      <h3>設定</h3>
+      <div style="margin-bottom:14px">
+        <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;color:var(--muted)">抽題數量</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm shuffle-count-btn active" data-count="10" onclick="selectShuffleCount(10)">10題</button>
+          <button class="btn btn-outline btn-sm shuffle-count-btn" data-count="20" onclick="selectShuffleCount(20)">20題</button>
+          <button class="btn btn-outline btn-sm shuffle-count-btn" data-count="30" onclick="selectShuffleCount(30)">30題</button>
+          <button class="btn btn-outline btn-sm shuffle-count-btn" data-count="50" onclick="selectShuffleCount(50)">50題</button>
+          <button class="btn btn-outline btn-sm shuffle-count-btn" data-count="100" onclick="selectShuffleCount(100)">全部100題</button>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;color:var(--muted)">題型範圍</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm shuffle-type-btn active" data-type="all" onclick="selectShuffleType('all')">全部</button>
+          <button class="btn btn-outline btn-sm shuffle-type-btn" data-type="s" onclick="selectShuffleType('s')">僅單選</button>
+          <button class="btn btn-outline btn-sm shuffle-type-btn" data-type="m" onclick="selectShuffleType('m')">僅多選</button>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;color:var(--muted)">輪次範圍</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm shuffle-round-btn active" data-r="0" onclick="selectShuffleRound(0)">全部輪次</button>
+          <button class="btn btn-outline btn-sm shuffle-round-btn" data-r="1" onclick="selectShuffleRound(1)">第一輪</button>
+          <button class="btn btn-outline btn-sm shuffle-round-btn" data-r="2" onclick="selectShuffleRound(2)">第二輪</button>
+          <button class="btn btn-outline btn-sm shuffle-round-btn" data-r="3" onclick="selectShuffleRound(3)">第三輪</button>
+          <button class="btn btn-outline btn-sm shuffle-round-btn" data-r="4" onclick="selectShuffleRound(4)">第四輪</button>
+        </div>
+      </div>
+      <div id="shuffle-info" class="tip-box" style="margin-bottom:14px">已選擇：10 題 / 全部題型 / 全部輪次</div>
+      <div style="text-align:center">
+        <button class="btn btn-outline" onclick="renderStart()">返回</button>
+        <button class="btn btn-pri" style="margin-left:8px" onclick="startShufflePractice()">開始抽題</button>
+      </div>
+    </div>`;
+  document.getElementById('main').innerHTML = html;
+  document.getElementById('hdr-pause').style.display = 'none';
+  document.getElementById('side-actions').classList.remove('show');
+  // 初始默認值
+  state.shuffleConfig = {count: 10, type: 'all', round: 0};
+  selectShuffleCount(10);
+  selectShuffleType('all');
+  selectShuffleRound(0);
+  updateShuffleInfo();
+}
+
+function selectShuffleCount(c) {
+  state.shuffleConfig.count = c;
+  document.querySelectorAll('.shuffle-count-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.count) === c);
+    if (parseInt(b.dataset.count) === c) b.classList.add('btn-pri');
+    else b.classList.remove('btn-pri');
+  });
+  updateShuffleInfo();
+}
+
+function selectShuffleType(t) {
+  state.shuffleConfig.type = t;
+  document.querySelectorAll('.shuffle-type-btn').forEach(b => {
+    const active = b.dataset.type === t;
+    b.classList.toggle('active', active);
+    if (active) b.classList.add('btn-pri');
+    else b.classList.remove('btn-pri');
+  });
+  updateShuffleInfo();
+}
+
+function selectShuffleRound(r) {
+  state.shuffleConfig.round = r;
+  document.querySelectorAll('.shuffle-round-btn').forEach(b => {
+    const active = parseInt(b.dataset.r) === r;
+    b.classList.toggle('active', active);
+    if (active) b.classList.add('btn-pri');
+    else b.classList.remove('btn-pri');
+  });
+  updateShuffleInfo();
+}
+
+function updateShuffleInfo() {
+  const cfg = state.shuffleConfig;
+  // 計算實際可抽的題數
+  let pool = QUESTIONS;
+  if (cfg.round > 0) pool = pool.filter(q => q.r === cfg.round);
+  if (cfg.type !== 'all') pool = pool.filter(q => q.t === cfg.type);
+  const realCount = Math.min(cfg.count, pool.length);
+  const typeLabel = cfg.type === 'all' ? '全部題型' : (cfg.type === 's' ? '單選' : '多選');
+  const roundLabel = cfg.round === 0 ? '全部輪次' : `第${['一','二','三','四'][cfg.round-1]}輪`;
+  const info = document.getElementById('shuffle-info');
+  if (info) {
+    info.innerHTML = `已選擇：<b>${realCount}</b> 題 / ${typeLabel} / ${roundLabel}${realCount < cfg.count ? `（題庫僅有 ${pool.length} 題）` : ''}`;
+  }
+}
+
+function shuffleArray(arr) {
+  // Fisher–Yates 洗牌
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startShufflePractice() {
+  const cfg = state.shuffleConfig || {count: 10, type: 'all', round: 0};
+  let pool = QUESTIONS;
+  if (cfg.round > 0) pool = pool.filter(q => q.r === cfg.round);
+  if (cfg.type !== 'all') pool = pool.filter(q => q.t === cfg.type);
+  if (pool.length === 0) {
+    alert('沒有符合條件的題目');
+    return;
+  }
+  const realCount = Math.min(cfg.count, pool.length);
+  const picked = shuffleArray(pool).slice(0, realCount);
+  state.practiceMode = 'shuffle';
+  state.shuffleQuestions = picked;
+  state.shuffleIndex = 0;
+  state.shuffleScore = 0;
+  state.shuffleWrong = [];
+  state.shuffleHistory = {}; // 專用歷史，不影響主模式
+  state.selected = [];
+  state.answered = false;
+  state.paused = false;
+  stopTimer();
+  // 顯示暫停按鈕，隱藏目錄（隨機模式不支援跨輪次跳轉）
+  document.getElementById('hdr-pause').style.display = 'inline-block';
+  document.getElementById('hdr-pause').textContent = '暫停';
+  document.getElementById('side-actions').classList.add('show');
+  document.getElementById('side-nav-btn').style.display = 'none';
+  // 啟動計時器（無超時警告）
+  state.timer.elapsed['shuffle'] = 0;
+  state.timer.roundStart = Date.now();
+  state.timer.interval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - state.timer.roundStart) / 1000);
+    state.timer.elapsed['shuffle'] = elapsed;
+    updateTimerDisplay(elapsed);
+  }, 1000);
+  renderShuffleQuestion();
+}
+
+function renderShuffleQuestion() {
+  if (state.shuffleIndex >= state.shuffleQuestions.length) {
+    renderShuffleSummary();
+    return;
+  }
+  const q = state.shuffleQuestions[state.shuffleIndex];
+  const history = state.shuffleHistory[q.id];
+  const numInRound = state.shuffleIndex + 1;
+  const total = state.shuffleQuestions.length;
+  const typeBadge = q.t === 's' ? 'badge-s' : 'badge-m';
+  const typeLabel = q.t === 's' ? '單選' : '多選';
+  const letters = ['A','B','C','D','E'];
+
+  let html = '';
+  if (state.shuffleIndex === 0) {
+    html += `
+      <div class="round-banner">
+        <div>
+          <h2>🎲 隨機抽題</h2>
+          <p>自我檢測模式</p>
+        </div>
+        <div class="round-stats">
+          <div class="stat-chip"><span>${total}</span>題</div>
+          <div class="stat-chip"><span>${state.shuffleScore}</span>正確</div>
+        </div>
+      </div>`;
+  }
+
+  html += `
+    <div class="q-card">
+      <div class="q-meta">
+        <span class="q-num">隨-${numInRound}/${total}</span>
+        <span class="q-type-badge ${typeBadge}">${typeLabel}</span>
+        <span class="q-orig">〔原${q.id} · 第${['一','二','三','四'][q.r-1]}輪〕</span>
+      </div>
+      <div class="q-text">${q.q}</div>
+      <div class="opts">
+        ${q.o.map((opt, i) => {
+          const letter = letters[i];
+          let extraClass = '';
+          if (history) {
+            const correctAns = q.a.split('');
+            if (correctAns.includes(letter)) extraClass = ' correct';
+            else if (history.selected.includes(letter)) extraClass = ' wrong';
+          } else if (state.selected.includes(letter)) {
+            extraClass = ' selected';
+          }
+          const onclick = history ? '' : ` onclick="toggleShuffleOption('${letter}')"`;
+          return `<button class="opt${extraClass}${history ? ' opt-disabled' : ''}"${onclick}>
+            <span class="opt-letter">${letter}</span>
+            <span class="opt-text">${opt}</span>
+          </button>`;
+        }).join('')}
+      </div>`;
+
+  if (!history) {
+    html += `
+      ${q.t === 'm' ? '<div class="multi-hint">⚠️ 本題為多選題，請選擇至少兩個答案</div>' : ''}
+      ${q.t === 'm' && state.selected.length > 0 ? '<button class="btn btn-outline btn-sm" style="margin-top:8px" onclick="clearShuffleSelection()">清除選擇</button>' : ''}
+      <div class="action-row">
+        <button class="btn btn-outline btn-sm" onclick="exitShuffle()">結束抽題</button>
+        <button class="btn btn-pri btn-sm" onclick="submitShuffleAnswer()" ${state.selected.length === 0 ? 'disabled' : ''}>
+          確定答案
+        </button>
+      </div>`;
+  } else {
+    const fbClass = history.isCorrect ? 'fb-ok' : 'fb-err';
+    const fbTitle = history.isCorrect ? '✓ 正確' : '✗ 錯誤';
+    html += `
+      <div class="feedback show ${fbClass}">
+        <div class="fb-title">${fbTitle}</div>
+        <div class="fb-exp expanded" style="max-height:none">${q.e}</div>
+        <div class="fb-ans">正確答案：${q.a}</div>
+      </div>
+      <div class="action-row">
+        <button class="btn btn-pri btn-sm" onclick="nextShuffleQuestion()">${state.shuffleIndex + 1 >= total ? '查看結果' : '下一題 →'}</button>
+      </div>`;
+  }
+  html += `</div>`;
+  document.getElementById('main').innerHTML = html;
+  updateProgress(Math.round((state.shuffleIndex / total) * 100));
+}
+
+function toggleShuffleOption(letter) {
+  const q = state.shuffleQuestions[state.shuffleIndex];
+  if (!q) return;
+  if (q.t === 's') {
+    state.selected = [letter];
+  } else {
+    const idx = state.selected.indexOf(letter);
+    if (idx >= 0) state.selected.splice(idx, 1);
+    else state.selected.push(letter);
+  }
+  renderShuffleQuestion();
+}
+
+function clearShuffleSelection() {
+  state.selected = [];
+  renderShuffleQuestion();
+}
+
+function submitShuffleAnswer() {
+  if (state.selected.length === 0) return;
+  const q = state.shuffleQuestions[state.shuffleIndex];
+  const userAns = state.selected.slice().sort().join('');
+  const isCorrect = userAns === q.a;
+  state.shuffleHistory[q.id] = {
+    selected: [...state.selected].sort(),
+    isCorrect: isCorrect
+  };
+  if (isCorrect) {
+    state.shuffleScore++;
+  } else {
+    state.shuffleWrong.push({
+      id: q.id,
+      q: q.q,
+      userAns: userAns,
+      correctAns: q.a,
+      round: q.r
+    });
+    addToWrongBank(q.id, userAns); // 同步歸檔到歷史錯題庫
+  }
+  renderShuffleQuestion();
+}
+
+function nextShuffleQuestion() {
+  state.shuffleIndex++;
+  state.selected = [];
+  if (state.shuffleIndex >= state.shuffleQuestions.length) {
+    renderShuffleSummary();
+  } else {
+    renderShuffleQuestion();
+  }
+}
+
+function exitShuffle() {
+  if (!confirm('確定結束抽題吗？將顯示目前成績')) return;
+  renderShuffleSummary();
+}
+
+function renderShuffleSummary() {
+  stopTimer();
+  const score = state.shuffleScore;
+  const total = state.shuffleQuestions.length;
+  const attempted = Object.keys(state.shuffleHistory).length;
+  const pct = attempted === 0 ? 0 : Math.round(score / attempted * 100);
+  const gradeClass = pct >= 90 ? 'grade-a' : pct >= 80 ? 'grade-b' : pct >= 70 ? 'grade-c' : 'grade-d';
+  const gradeLabel = pct >= 90 ? '優秀' : pct >= 80 ? '良好' : pct >= 70 ? '合格' : '待加強';
+  const time = state.timer.elapsed['shuffle'] || 0;
+  const mins = Math.floor(time / 60);
+  const secs = time % 60;
+
+  const wrongHtml = state.shuffleWrong.length === 0 ?
+    '<div class="empty-msg">🎉 本次全對！</div>' :
+    `<div class="wrong-list">
+       ${state.shuffleWrong.map(w => `
+         <div class="wrong-item">
+           <div class="wi-q">〔原${w.id}·第${['一','二','三','四'][w.round-1]}輪〕 ${w.q}</div>
+           <div class="wi-ans">正確答案：${w.correctAns}</div>
+           <div class="wi-mine">你的答案：${w.userAns}</div>
+         </div>`).join('')}
+     </div>`;
+
+  const html = `
+    <div class="final-hero">
+      <h2>🎲 隨機抽題完成</h2>
+      <p>正確：<b>${score}</b> / 已答 ${attempted} / 總${total} = ${pct}%</p>
+      <p>用時：${mins}分${secs}秒</p>
+    </div>
+    <div class="summary-card">
+      <div class="score-big">
+        <div class="num">${score}</div><div class="denom">/ ${attempted || total}</div>
+        <div class="pct">${pct}%</div>
+        <div class="score-grade ${gradeClass}">${gradeLabel}</div>
+      </div>
+      <div class="section-title">錯題回顧</div>
+      ${wrongHtml}
+      <div style="text-align:center;margin-top:16px">
+        <button class="btn btn-outline" onclick="renderStart()">返回首頁</button>
+        <button class="btn btn-pri" style="margin-left:8px" onclick="showShuffleDialog()">🎲 再隨機一次</button>
+      </div>
+    </div>`;
+  document.getElementById('main').innerHTML = html;
+  document.getElementById('hdr-pause').style.display = 'none';
+  document.getElementById('side-actions').classList.remove('show');
+  document.getElementById('hdr-timer').textContent = '--:--';
+  state.practiceMode = 'all'; // 結束後重置模式
+  updateProgress(100);
+}
+
+// ============================================================
+// WRONG-BANK REVIEW (錯題回看清單頁)
+// ============================================================
+function renderWrongReview() {
+  state.practiceMode = 'review';
+  state.screen = 'review';
+  stopTimer();
+  document.getElementById('hdr-pause').style.display = 'none';
+  document.getElementById('side-actions').classList.add('show');
+  document.getElementById('side-nav-btn').style.display = 'none';
+  document.getElementById('hdr-timer').textContent = '--:--';
+  const letters = ['A','B','C','D','E'];
+  const total = state.wrongBank.length;
+  const singleCount = state.wrongBank.filter(w => w.t === 's').length;
+  const multiCount = total - singleCount;
+  const roundDist = [1,2,3,4].map(r => state.wrongBank.filter(w => w.round === r).length);
+  let html = `
+    <div class="round-banner">
+      <div>
+        <h2>📖 錯題回看</h2>
+        <p>共 ${total} 題歷史錯題（單選 ${singleCount} · 多選 ${multiCount}）</p>
+      </div>
+      <div class="round-stats">
+        <div class="stat-chip"><span>${total}</span>題</div>
+      </div>
+    </div>`;
+  if (total === 0) {
+    html += `
+      <div class="review-empty">
+        <span class="ico">🎉</span>
+        你還沒有錯題～快去刷題努力吧！<br><br>
+        <button class="btn btn-pri" onclick="backToHome()">返回首頁</button>
+      </div>`;
+    document.getElementById('main').innerHTML = html;
+    updateProgress(0);
+    return;
+  }
+  const distHtml = roundDist.map((n, i) => n > 0 ? `<span class="tag tag-${i+1}">第${i+1}輪:${n}</span>` : '').join(' ');
+  html += `
+    <div style="margin:12px 0;font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      分佈：${distHtml || '無'}
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="btn btn-pri btn-sm" onclick="startWrongBankPractice()">🔁 重練全部錯題</button>
+      <button class="btn btn-outline btn-sm" onclick="clearWrongBankConfirm()" style="border-color:#ef4444;color:#ef4444">🗑 清空錯題庫</button>
+    </div>
+    <div class="review-list">`;
+  const sorted = [...state.wrongBank].sort((a,b) => (b.addedAt || 0) - (a.addedAt || 0));
+  sorted.forEach(w => {
+    const typeLabel = w.t === 's' ? '單選' : '多選';
+    const typeBadge = w.t === 's' ? 'badge-s' : 'badge-m';
+    const correctSet = w.a.split('');
+    const userSet = (w.userAns || '').split('');
+    const optsHtml = w.o.map((opt, i) => {
+      const letter = letters[i];
+      const isCorrect = correctSet.includes(letter);
+      const isUserWrong = userSet.includes(letter) && !isCorrect;
+      const cls = isCorrect ? ' correct' : (isUserWrong ? ' user-wrong' : '');
+      return `<div class="review-opt${cls}"><strong>${letter}.</strong> ${opt}</div>`;
+    }).join('');
+    const needsExpand = w.e && w.e.length > 60;
+    html += `
+      <div class="review-item">
+        <div class="review-head">
+          <div class="meta">
+            <span class="q-num">原題${w.id}</span>
+            <span class="tag tag-${w.round}">第${w.round}輪</span>
+            <span class="q-type-badge ${typeBadge}">${typeLabel}</span>
+          </div>
+          <button class="review-rm" onclick="removeFromBankAndRefresh(${w.id})">移除</button>
+        </div>
+        <div class="review-q">${w.q}</div>
+        <div class="review-opts">${optsHtml}</div>
+        <div class="review-ans">✅ 正確答案：<strong>${w.a}</strong>   ❌ 上次作答：<strong>${w.userAns || '未作答'}</strong></div>
+        ${w.e ? `<div class="review-exp${needsExpand ? '' : ' show'}" id="rexp-${w.id}">${w.e}</div>${needsExpand ? `<span class="review-exp-toggle" onclick="toggleReviewExp(${w.id})">展開解析 ▾</span>` : ''}` : ''}
+      </div>`;
+  });
+  html += `</div>`;
+  document.getElementById('main').innerHTML = html;
+  updateProgress(0);
+}
+
+function toggleReviewExp(id) {
+  const el = document.getElementById('rexp-' + id);
+  if (!el) return;
+  el.classList.toggle('show');
+  const toggle = el.nextElementSibling;
+  if (toggle && toggle.classList.contains('review-exp-toggle')) {
+    toggle.textContent = el.classList.contains('show') ? '收起解析 ▴' : '展開解析 ▾';
+  }
+}
+
+function removeFromBankAndRefresh(id) {
+  if (!confirm('確定從錯題庫移除這道題？')) return;
+  removeFromWrongBank(id);
+  const idx = state.wrong.findIndex(w => w.id === id);
+  if (idx >= 0) state.wrong.splice(idx, 1);
+  renderWrongReview();
+}
+
+function clearWrongBankConfirm() {
+  if (!confirm('確定清空所有歷史錯題？此操作不可退回。')) return;
+  clearWrongBank();
+  renderWrongReview();
+}
+
+function startWrongBankPractice() {
+  if (state.wrongBank.length === 0) return;
+  state.wrong = state.wrongBank.map(w => ({
+    round: w.round,
+    id: w.id,
+    q: w.q,
+    userAns: w.userAns,
+    correctAns: w.a
+  }));
+  startWrongPractice(); // 複用現有錯題專練邏輯
+}
+
+// ============================================================
+// INIT
+// ============================================================
+state.wrongBank = loadWrongBank(); // 啟動時載入歷史錯題庫
+renderStart();
+</script>
+</body>
+</html>
