@@ -157,9 +157,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans TC',sans
 .fb-ok .fb-title{color:var(--ok)}
 .fb-err .fb-title{color:var(--err)}
 .fb-exp{font-size:13px;color:var(--txt);line-height:1.6;max-height:60px;overflow:hidden;transition:max-height .3s}
-.fb-exp.expanded{max-height:500px}
+.fb-exp.expanded{max-height:1200px}
 .fb-exp-toggle{font-size:12px;color:var(--pri);cursor:pointer;margin-top:4px}
 .fb-ans{font-size:13px;margin-top:6px;color:var(--muted)}
+/* 詳解切換按鈕 */
+.detail-toggle{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--pri);background:#f0f7ff;border:1px solid var(--pri-l);border-radius:6px;padding:4px 10px;cursor:pointer;margin-top:8px;transition:all .2s;user-select:none}
+.detail-toggle:hover{background:var(--pri-l);transform:translateY(-1px)}
+.detail-toggle.active{background:var(--pri);color:white;border-color:var(--pri)}
+.fb-exp-detail{font-size:13px;color:var(--txt);line-height:1.7;background:#fafbff;border-left:3px solid var(--pri);padding:10px 12px;margin-top:8px;border-radius:0 6px 6px 0;display:none}
+.fb-exp-detail.show{display:block}
+.fb-exp-detail b{color:var(--pri-d)}
 
 /* Multi-choice hint */
 .multi-hint{background:var(--warn-l);color:#92400e;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:12px;border-left:3px solid var(--warn)}
@@ -248,6 +255,162 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans TC',sans
 <div id="main"></div>
 
 <script>
+// ============================================================
+// 詳解資料表（按舊題庫 ID 索引；摘自題庫官方解析+教師補充記憶點）
+// 預設顯示精簡版 q.e；用戶點擊「📖 查看詳解」後切換為 EXPLAIN_DETAIL[id]
+// 對應新題庫題號詳見 10_題號對照表.md
+// ============================================================
+const EXPLAIN_DETAIL = {
+  // ===== Round 1: AIGC基礎 + 數據安全（單選） =====
+  'Q33': '<b>新題庫對應：Q51</b><br>AIGC = AI <b>Generated</b> Content（人工智能<b>生成</b>內容）。<br>• A 專業內容生成 ❌：AIGC 強調「AI 主體生成」，與「專業性」無直接綁定<br>• B 用戶內容生成 ❌：那是 UGC（User Generated Content）<br>• C AI 輔助內容生成 ❌：「輔助」意味 AI 只是配角；AIGC 強調 AI 主體<br>• D 人工智能內容生成 ✅<br><b>🎯 英文拆字記憶：</b>G = <b>G</b>enerated（生成）→ 直接鎖定 D。',
+  'Q3': '<b>新題庫對應：Q49</b><br>AIGC 內容範圍 = 文本/圖像/視頻/音頻 等 AI <b>創作</b>內容。<br>• C GPS 中頻數字信號 = 衛星傳來的物理無線電信號，由硬體接收，非 AI 創作。<br><b>🎯 解題技巧：</b>看到「物理信號」「硬體接收」「測量值」 → 排除（不是 AIGC）。',
+  'Q47': '<b>新題庫對應：Q57</b><br>AIGC 相對人工的核心優勢 = <b>速度快 + 成本低</b>。<br>• A 速度更快 ✅：AI 可秒級產出，人工需數小時/天<br>• B 內容更專業 ❌：深度專業領域 AI 仍可能犯錯，需人工把關<br>• C 成本更高 ❌：恰恰相反，AIGC 大幅降低人力成本<br>• D 內容更穩定 ❌：AI 輸出存在隨機性，未必比人工穩定<br><b>🎯 記憶點：</b>AIGC 兩字訣 = 「快、省」。',
+  'Q41': '<b>新題庫對應：Q4 🔥</b><br>AIGC 三駕馬車 = <b>數據+算力 / 模型 / 應用需求</b>。<br>• B「慢工出細活的工匠精神」與 AI <b>高效自動化</b>方向相反，是反向設計干擾項。<br><b>🎯 記憶口訣：</b>「數據算力推得動、模型聰明做得對、需求豐富用得開」。',
+  'Q13': '<b>新題庫對應：Q52</b><br>AIGC 算力相關事實：<br>• A ✅ 算力主要指 GPU/TPU 加速器<br>• B ✅ 大模型對算力需求急劇上升<br>• <b>C ❌ 錯誤：</b>大型 AIGC 模型預訓練必須<b>分布式</b>（數百到數千張 GPU 協同），單台無法完成<br>• D ✅ 數據和算力都重要<br><b>🎯 記憶點：</b>「大模型 = 集群訓練」是常識題。',
+  'Q60': '<b>新題庫對應：Q18</b><br>AIGC 大模型訓練範式：<br>• A/B/D 都正確（數據是基礎、質量影響性能、無數據無訓練）<br>• <b>C ❌ 錯誤：</b>AIGC 大模型多採用<b>自監督/半監督/無監督</b>學習，<b>不是</b>有監督預訓練。<br><b>🎯 記憶點：</b>「自監督」三字是大模型訓練的核心詞，與「有監督+標注」相對立。',
+  'Q2': '<b>新題庫對應：Q7 🔥</b><br>跨模態 = 輸入與輸出<b>類型不同</b>。<br>• A 只描述輸入 ❌（不夠完整）<br>• B 輸入和輸出屬於不同的模態 ✅（標準定義）<br>• C 只描述輸出 ❌<br>• D 表述歧義（「都是兩個」邏輯不清）<br><b>🎯 配對記憶：</b>跨模態（文→圖、圖→文、文→視頻）vs 單模態（文→文、圖→圖）。',
+  'Q43': '<b>新題庫對應：Q22 🔥</b><br>三端風險對照（必背）：<br>• <b>輸入端</b>：非法獲取 + 投毒（A ✅）<br>• <b>傳輸端</b>：攔截 + 篡改 + 未授權（B ❌→屬模型訓練）<br>• <b>輸出端</b>：指令注入 + 惡意生成（D ❌）<br>• 數據泄露 ❌ 是綜合性風險，不專屬輸入端<br><b>🎯 口訣：</b>「輸入怕偷怕毒、傳輸怕攔怕改、輸出怕壞人用」。',
+  'Q42': '<b>新題庫對應：Q14 🔥</b><br>數據輸出端 = AI 結果產出階段。<br>• A 數據非法獲取 ❌（屬輸入端）<br>• <b>B 指令注入攻擊 ✅</b>（Prompt Injection——惡意用戶誘導 AI 生成不當內容）<br>• C 數據泄露 ❌（綜合性問題）<br>• D 訓練偏見 ❌（屬模型訓練階段）<br><b>🎯 記憶點：</b>「指令注入」= 輸出端的標誌性攻擊類型。',
+  'Q15': '<b>新題庫對應：Q42</b><br>傳輸端風險（數據在線路上時）：<br>• A 攔截、B 篡改、D 未經授權訪問 ✅ 都是傳輸時風險<br>• <b>C 數據訓練偏見 ❌</b>：屬於模型訓練階段，不是傳輸過程的問題<br><b>🎯 記憶點：</b>「訓練偏見」永遠不會出現在傳輸端題目。',
+  'Q26': '<b>新題庫對應：Q33</b><br>網絡安全防護的典型案例：<br>• A 員工誤發郵件 = 人為操作失誤<br>• <b>B WannaCry 勒索病毒 ✅</b> = 典型的全球性網絡攻擊事件<br>• C 工廠電力故障 = 物理基礎設施問題<br>• D 社交應用隱私 = 隱私合規問題<br><b>🎯 記憶點：</b>「勒索病毒/Ransomware」= 網絡安全的典型代表詞。',
+  'Q28': '<b>新題庫對應：Q11 🔥</b><br>數據安全法律框架（必背）：<br>• A 網絡安全法 ✅<br>• B 個人信息保護法 ✅<br>• <b>C 市場準入法 ❌</b>（與商業准入有關，不在數據安全範疇）<br>• D 數據安全法 ✅<br><b>🎯 記憶口訣：</b>「三法保安全」= 網安+個保+數安。<br><b>陷阱家族（都不在框架）：</b>市場準入法、反壟斷法、勞動法、消費者權益法。',
+  'Q38': '<b>新題庫對應：Q54</b><br>技術層面三寶：<br>• A 加密技術 ✅<br>• B 密鑰管理 ✅<br>• C 訪問控制 ✅<br>• <b>D 市場營銷策略 ❌</b>（屬商業運營，與技術安全無關）<br><b>🎯 記憶口訣：</b>「加密 + 密鑰 + 訪控」= 技術層面三道閘。',
+  'Q48': '<b>新題庫對應：Q21</b><br>企業自查需求分析 = 關注<b>內部管理</b>。<br>• A 組織架構建設 ✅<br>• B 培訓計畫 ✅<br>• <b>C 市場營銷策略 ❌</b>（屬外部市場拓展，不是內部自查）<br>• D 流程管理 ✅<br><b>🎯 解題技巧：</b>看到「市場營銷」放在內部管理題 → 多半是干擾項。',
+  'Q53': '<b>新題庫對應：Q1 ⚠️</b><br>定性 vs 定量評估區分：<br>• A 風險矩陣法 → 定性<br>• <b>B 概率分析 → 定量 ❌</b>（依賴數學/統計精確計算）<br>• C 德爾菲法 → 定性（專家匿名問卷）<br>• D 情景分析法 → 定性<br><b>🎯 區分技巧：</b>「概率」「蒙特卡羅」「數學模型」 → 定量；「矩陣」「德爾菲」「情景」「專家判斷」 → 定性。',
+  'Q58': '<b>新題庫對應：Q34</b><br>數據安全法律框架（與 Q28 配對）：<br>• A 網絡安全法 ✅<br>• <b>B 反壟斷法 ❌</b>（屬競爭法，與數據安全無關）<br>• C 個人信息保護法 ✅<br>• D 數據安全法 ✅<br><b>🎯 干擾項家族：</b>市場準入法、反壟斷法、勞動法、消費者權益法 — 都不在數據安全法律框架。',
+
+  // ===== Round 1: 多選題 =====
+  'M1': '<b>新題庫對應：M38 🔥</b><br>AIGC 特點：<br>• A AI 為輔人工為主 ❌（反向設計——AIGC 強調 AI 主體）<br>• B 快速低成本制作 ✅<br>• C 跨模態生成內容豐富 ✅<br>• D AI 端到端生成 ✅<br><b>🎯 記憶點：</b>看到「AI 為輔/人工為主」立刻排除——那是傳統 AI 輔助、不是 AIGC。',
+  'M4': '<b>新題庫對應：M11 🔥</b><br>跨模態 = 輸入輸出類型不同：<br>• A 音頻生音頻 ❌（同模態）<br>• B 圖生文 ✅（圖→文）<br>• C 文生圖 ✅（文→圖）<br>• D 文生視頻 ✅（文→視頻）<br><b>🎯 配對記憶：</b>與單模態題（M30）做四象限對照學習。',
+  'M30': '<b>新題庫對應：M14 🔥</b><br>單模態 = 同模態（輸入輸出同類型）：<br>• A 文生文 ✅<br>• B 圖生圖 ✅<br>• <b>C 文生圖 ❌</b>（跨模態！文→圖類型不同）<br>• D 視頻生視頻 ✅<br><b>🎯 三大陷阱：</b>本題屬「定義類陷阱」——單模態 vs 跨模態的核心差異是「類型相同/不同」。',
+  'M21': '<b>新題庫對應：M12</b><br>AIGC 娛樂領域應用：<br>• A 音樂、繪畫、視頻創作 ✅<br>• B 虛擬偶像生成 ✅<br>• C 社交互動 ✅<br>• <b>D 新聞報道稿件生成 ❌</b>（屬媒體/傳媒領域，主目的是傳遞信息，不是娛樂體驗）<br><b>🎯 記憶點：</b>娛樂 = 提供休閒體驗；媒體 = 傳遞信息。兩者目的不同。',
+  'M6': '<b>新題庫對應：M21</b><br>傳統安全風險應對組合拳：<br>• A 技術手段 ✅（更新防護系統）<br>• B 管理措施 ✅（制定制度）<br>• C 人員培訓 ✅（提升意識）<br>• D 忽視風險 ❌<br>• E 僅依靠政府 ❌（單點不夠）<br><b>🎯 記憶口訣：</b>「技術 + 管理 + 人員」三招組合拳。',
+  'M10': '<b>新題庫對應：M1 🔥</b><br>傳輸端三大風險：<br>• A 數據攔截 ✅<br>• B 數據篡改 ✅<br>• C 未經授權訪問 ✅<br>• <b>D 數據分類分級不當 ❌</b>（屬內部數據管理，不是傳輸過程）<br><b>🎯 與單選 Q15 配對：</b>傳輸端永遠不會包含「訓練偏見」「分類分級不當」。',
+  'M18': '<b>新題庫對應：M30</b><br>新興安全風險特點：<br>• A 技術複雜性 ✅<br>• B 不確定性 ✅<br>• C 傳播快速性 ✅<br>• D 隱蔽性 ✅<br>• <b>E 穩定性 ❌</b>（反向設計——新興風險恰恰是不穩定、變化快的）<br><b>🎯 記憶點：</b>「穩定」與「新興」天然矛盾。',
+  'M24': '<b>新題庫對應：M25 🔥</b><br>數據安全法律框架（多選版本）：<br>• A 網絡安全法 ✅<br>• B 個人信息保護法 ✅<br>• <b>C 勞動法 ❌</b>（屬勞動關係法，與數據安全無關）<br>• D 數據安全法 ✅<br><b>🎯 與單選 Q28、Q58 配對：</b>都是同一個三法+干擾項家族的考法。',
+  'M37': '<b>新題庫對應：M37</b><br>正規評估方法只有兩種：<br>• A 定性評估（風險矩陣、德爾菲）✅<br>• B 定量評估（概率分析、蒙特卡羅）✅<br>• C 主觀判斷 ❌（不是獨立方法，依賴於定性評估的一部分）<br>• D 完全不評估 ❌<br>• E 依靠經驗評估 ❌（不規範，主觀性強）<br><b>🎯 配對記憶：</b>與單選 Q53「定性 vs 定量」配套學習。',
+  'M38': '<b>新題庫對應：M5</b><br>技術層面保障三寶：<br>• A 加密技術 ✅<br>• B 密鑰管理 ✅<br>• C 訪問控制 ✅<br>• <b>D 市場營銷策略 ❌</b>（屬商業運營）<br><b>🎯 與單選 Q38 配對：</b>同一三寶+干擾項。',
+
+  // ===== Round 2: 核心算法模型（單選） =====
+  'Q8': '<b>新題庫對應：Q37 🔥🔥</b><br>原生 Transformer = 為 NLP 序列任務設計（2017 Vaswani 論文）。<br>• A 圖像 ❌（CNN/ViT 的事）<br>• B 視頻 ❌<br>• C 音頻 ❌<br>• <b>D 文本 ✅</b><br><b>🎯 記憶口訣：</b>「原生 = 原版 = 文本」。後續被改造成多模態的版本（如 ViT、Whisper）不算原生。',
+  'Q10': '<b>新題庫對應：Q27 🔥</b><br>AIGC 主流架構為何是 Transformer：<br>• A CNN ❌（圖像識別強，但 NLP 弱）<br>• B RNN ❌（梯度消失/爆炸問題）<br>• C LSTM ❌（仍受序列長度限制）<br>• <b>D Transformer ✅</b>（自注意力 + 並行計算 + 全局依賴）<br><b>🎯 記憶點：</b>「自注意力 + 並行」= Transformer 兩大殺手鐧。',
+  'Q6': '<b>新題庫對應：Q8 🔥</b><br>VideoGPT 學習離散潛在表示的技術：<br>• A RNN ❌<br>• B CNN ❌（特徵提取，不是離散化）<br>• <b>C VQ-VAE ✅</b>（向量量化變分自編碼器）<br>• D GAN ❌（生成新圖像，不是離散化）<br><b>🎯 記憶口訣：</b>看到「離散 + 潛在表示 + 下採樣」 → 必選 VQ-VAE。',
+  'Q24': '<b>新題庫對應：Q19</b><br>VideoGPT 處理流程：原始視頻 → <b>VQ-VAE 下採樣→離散潛在變量</b> → Transformer 自回歸生成。<br>• A Embedding 向量化 ❌（NLP 用）<br>• <b>B VQ-VAE 下採樣 ✅</b><br>• C 卷積神經網絡 ❌<br>• D Transformer 提取特徵 ❌（順序錯——Transformer 是後一步）<br><b>🎯 記憶點：</b>視頻太大要先壓縮（VQ-VAE 的事），再交給 Transformer。',
+  'Q25': '<b>新題庫對應：Q20 🔥</b><br>VideoGPT 主體 = <b>VQ-VAE + Transformer</b>。<br>• A VQ-VAE+BiLSTM ❌<br>• <b>B VQ-VAE+Transformer ✅</b><br>• C VQGAN+Transformer ❌（VQGAN 是另一個模型）<br>• D BiLSTM+VQGAN ❌<br><b>🎯 干擾項家族：</b>BiLSTM、VQGAN、GAN、全連接 — 統統不對。',
+  'Q31': '<b>新題庫對應：Q31</b><br>Transformer 在 VideoGPT 中的作用：<br>• A 對視頻下採樣 ❌（VQ-VAE 的事）<br>• B 離散→連續像素 ❌（解碼器的事）<br>• <b>C 預測下一個時間步的離散潛在表示 ✅</b>（自回歸建模）<br>• D 壓縮視頻數據 ❌<br><b>🎯 記憶點：</b>Transformer 在 VideoGPT 中 = 自回歸<b>預測下一步</b>。',
+  'Q44': '<b>新題庫對應：Q5</b><br>VQ-VAE 訓練目標三要素：<br>• <b>A 潛在空間大小 + 碼本數量 + 自回歸先驗容量 ✅</b><br>• B 視頻分辨率/幀率 ❌（外部屬性，不是訓練目標）<br>• C 訓練時間/資源 ❌（衡量指標）<br>• D 數據集大小 ❌<br><b>🎯 記憶口訣：</b>VQ-VAE 三要素 = 「空間 + 碼本 + 先驗」。',
+  'Q9': '<b>新題庫對應：Q17 🔥</b><br>VQ-VAE 位置編碼特點：<br>• A 初始值不隨機 ❌（多數實現中是隨機初始化）<br>• B 只編碼器共享 ❌（解碼器也需要）<br>• C 固定不變的時空嵌入 ❌（位置編碼可學習，「時空」表述也不準）<br>• <b>D 編碼器和解碼器的所有軸向注意力層之間共享 ✅</b><br><b>🎯 記憶點：</b>「軸向注意力 + 共享」= VideoGPT 位置編碼的兩大標誌。',
+  'Q31_v2': '保留位（與單選 Q31 重複，避免覆蓋）',
+  'Q36': '<b>新題庫對應：Q31</b><br>同 Q31。Transformer 作用 = 自回歸預測下一個時間步離散潛在表示。',
+  'Q5': '<b>新題庫對應：Q58 🔥🔥</b><br>反向擴散過程 = <b>從噪聲恢復原始數據</b>。<br>• <b>A 從噪聲恢復原始數據 ✅</b>（去噪 = 生成）<br>• B 從數據生成噪聲 ❌（那是<b>正向</b>擴散）<br>• C 訓練模型最小化噪聲 ❌（描述訓練目標，不是反向過程定義）<br>• D 將數據映射到潛在空間 ❌（VAE 的事）<br><b>🎯 必背：</b>「反向 = 去噪 = 生成」——擴散模型最高頻單選題！',
+  'Q16': '<b>新題庫對應：Q24 🔥🔥</b><br>DALL·E 首發時間 = <b>2021 年</b>（OpenAI 發布第一代）。<br>• A 2019 ❌<br>• B 2020 ❌<br>• <b>C 2021 ✅</b><br>• D 2022 ❌<br><b>🎯 必背：DALL·E = 2021 + OpenAI</b>（與 Q21 配對記）。',
+  'Q19': '<b>新題庫對應：Q23</b><br>DALL·E 應用場景：<br>• A 創意設計 ✅<br>• <b>B 自動駕駛汽車 ❌</b>（自動駕駛靠雷達/感知/決策算法，與文→圖無關）<br>• C 廣告創意 ✅<br>• D 插畫設計 ✅<br><b>🎯 記憶點：</b>DALL·E 是文→圖模型，凡是跟「視覺創作」無關的應用都不是它的主場。',
+  'Q21': '<b>新題庫對應：Q43 🔥🔥</b><br>DALL·E 開發公司 = <b>OpenAI</b>。<br>• A Google ❌<br>• B Facebook ❌<br>• <b>C OpenAI ✅</b><br>• D Microsoft ❌<br><b>🎯 必背：</b>DALL·E + ChatGPT + GPT-4 = 都是 OpenAI 出品。',
+  'Q32': '<b>新題庫對應：Q29</b><br>SGMs（Score-based Generative Models）= 評分函數生成模型。<br>• A 條件生成 ❌（不是核心）<br>• <b>B 通過優化評分函數來生成 ✅</b><br>• C 預訓練加速 ❌<br>• D 數據→高斯 ❌<br><b>🎯 記憶口訣：</b>SGMs = <b>S</b>core（評分）— 名字裡就有答案。',
+  'Q40': '<b>新題庫對應：Q28</b><br>DDPM（Denoising Diffusion Probabilistic Models）主要用途：<br>• <b>A 生成高質量的圖像 ✅</b>（透過逐步去噪）<br>• B 優化訓練過程 ❌<br>• C 加快生成速度 ❌（DDPM 反而需要多步迭代）<br>• D 減少噪聲 ❌（去噪是手段，生成圖像才是目的）<br><b>🎯 記憶配對：</b>DDPM = 高質量；SGMs = 評分函數；SDEs = 最優貝葉斯去噪。',
+  'Q45': '<b>新題庫對應：Q30 ⚠️</b><br>「最優貝葉斯去噪」對應：<br>• <b>A DDPM ✅</b>（依官方解析）<br>• B SDEs ❌<br>• C SGMs ❌<br>• D GANs ❌<br><b>⚠️ 注意：</b>部分版本教材給出 SDEs；本題以新題庫官方解析為準（A=DDPM）。考試遇到此題，看選項描述哪個最契合「貝葉斯」字眼。',
+  'Q52': '<b>新題庫對應：Q12</b><br>DALL·E 工作流程中生成最終圖像的階段：<br>• A 數據預處理 ❌（前置步驟）<br>• B 文本編碼 ❌（理解輸入，不是生成輸出）<br>• <b>C 圖像解碼 ✅</b>（dVAE 解碼器將碼字序列還原成圖像）<br>• D 模型訓練 ❌<br><b>🎯 記憶點：</b>「解碼 = 輸出階段」是通用規則。',
+  'Q55': '<b>新題庫對應：Q39 🔥</b><br>VQ-VAE vs GAN 區別：<br>• A 用途不同 ✅（VQ-VAE 編解碼、GAN 生成）<br>• <b>B 都包含生成器和判別器 ❌</b>（VQ-VAE = 編碼器+量化器+解碼器，<b>無判別器</b>；只有 GAN 有判別器）<br>• C 結構不同 ✅<br>• D 訓練目標不同 ✅<br><b>🎯 記憶點：</b>「判別器」= GAN 獨有 = VQ-VAE 沒有。',
+  'Q57': '<b>新題庫對應：Q25 🔥</b><br>擴散模型最大局限：<br>• <b>A 高質量圖像所需的計算資源非常大 ✅</b>（steps 越多 → 細節越精緻 → 算力越大）<br>• B 噪聲不可控 ❌（其實可控）<br>• C 訓練時間長 ❌（不是最突出）<br>• D 不適用大規模數據 ❌（恰恰相反，數據越多越好）<br><b>🎯 記憶口訣：</b>「貴且慢」= 擴散模型兩大代價。',
+  'Q4': '<b>新題庫對應：Q60 🔥</b><br>VideoGPT 中 Transformer 不是作用：<br>• A 自回歸建模 ✅（是作用）<br>• <b>B 進行圖像分類 ❌</b>（圖像分類是 CNN/ViT 的事，不是 VideoGPT 中 Transformer 的職責）<br>• C 結合時空位置編碼 ✅<br>• D 預測下一時間步 ✅<br><b>🎯 記憶點：</b>VideoGPT 中 Transformer 三大職責 = 自回歸 + 時空編碼 + 預測下步；不做圖像分類。',
+
+  // ===== Round 2: 多選題 =====
+  'M3': '<b>新題庫對應：M28</b><br>StableDiffusion 應用領域：<br>• A 醫學圖像處理 ✅（醫療影像增強、病變模擬）<br>• B 語音識別 ❌（SD 是<b>圖像</b>技術）<br>• C 藝術創作 ✅<br>• D 自然語言處理 ❌（NLP 是文本領域）<br><b>🎯 記憶點：</b>SD = 圖像家族 → 凡涉及語音/文本任務都不是它的場。',
+  'M8': '<b>新題庫對應：M2</b><br>VideoGPT 模型優點：<br>• A 高效視頻生成 ✅<br>• B 高質量結果 ✅<br>• C 強擴展性 ✅<br>• D 廣泛應用前景 ✅<br>• E 文本驅動生成能力 ✅<br>本題全選——VideoGPT 五項優點均成立。',
+  'M9': '<b>新題庫對應：M19</b><br>StableDiffusion 圖像生成優勢：<br>• A 質量高 ✅<br>• B 訓練穩定 ✅（相對 GAN 不易模式崩潰）<br>• C 不需對抗訓練 ✅<br>• <b>D 計算資源少 ❌</b>（反向設計——SD 仍需大量算力）<br><b>🎯 記憶點：</b>「資源少」放在擴散模型/SD 題型 = 必為錯選。',
+  'M12': '<b>新題庫對應：M34</b><br>擴散模型兩大過程：<br>• A 前向擴散（加噪）✅<br>• B 反向擴散（去噪）✅<br>• C 向上擴散 ❌（虛構詞）<br>• D 向下擴散 ❌（虛構詞）<br><b>🎯 記憶點：</b>方向只有「前向」「反向」，沒有「向上/向下」。',
+  'M13': '<b>新題庫對應：M7</b><br>Space-Only 3D 卷積優點：<br>• A 保持時間長度 ✅（只動空間維度，時間不變）<br>• B 減少參數和計算量 ✅（比全 3D 卷積省）<br>• C 加大時間長度 ❌<br>• D 加大參數計算量 ❌<br><b>🎯 記憶點：</b>「Space-Only」名稱已暗示——只動空間，所以省。',
+  'M16': '<b>新題庫對應：M3 🔥</b><br>DALL·E 必要工作流程：<br>• A 文本編碼 ✅（理解輸入）<br>• B 先驗分布模型 ✅（文→圖映射）<br>• C 圖像解碼 ✅（生成輸出）<br>• <b>D 圖像編碼 ❌</b>（DALL·E 是<b>單向</b>文→圖，不需把圖像反編碼）<br><b>🎯 記憶點：</b>單向流程不需要反向編碼步驟。',
+  'M17': '<b>新題庫對應：M18 🔥🔥</b><br>DALL-E 三組件 = <b>dVAE + Transformer + CLIP</b>。<br>• A dVAE ✅（離散變分自編碼器）<br>• B Transformer ✅（文→圖先驗）<br>• C CLIP ✅（文圖對齊）<br>• <b>D GANs ❌</b>（混淆類干擾項——GAN 是另一類生成模型）<br><b>🎯 必背口訣：DTC = dVAE-Transformer-CLIP，不含 GAN！</b>',
+  'M19': '<b>新題庫對應：M33</b><br>VideoGPT 視頻說法：<br>• A 根據視頻數據生成 ✅<br>• B 文本描述生成 ✅<br>• <b>C 尺寸無限制 ❌</b>（任何模型都有限制——絕對化錯誤）<br>• D 多種類型樣本 ✅<br>• <b>E 無提升空間 ❌</b>（技術持續發展——絕對化錯誤）<br><b>🎯 解題技巧：</b>看到「沒有限制」「完美無缺」「百分之百」 → 多半錯。',
+  'M22': '<b>新題庫對應：M24</b><br>GAN 組件 = 生成器 G + 判別器 D（必背）。<br>• A 生成器 Generator ✅<br>• B 判別器 Discriminator ✅<br>• <b>C 長時記憶 ❌</b>（屬 LSTM）<br>• <b>D 短時記憶 ❌</b>（屬 LSTM）<br><b>🎯 記憶點：</b>「長/短時記憶」是 LSTM 概念，與 GAN 完全無關。',
+  'M25': '<b>新題庫對應：M20 🔥</b><br>擴散模型優點：<br>• A 質量高 ✅<br>• <b>B 訓練快 ❌</b>（反向陷阱——擴散訓練慢）<br>• C 多樣化 ✅<br>• <b>D 資源少 ❌</b>（反向陷阱——擴散最耗資源）<br><b>🎯 三大陷阱識別：</b>本題屬「反向類陷阱」——問優點卻給出缺點選項。',
+  'M26': '<b>新題庫對應：M6</b><br>主流 GAN 三家族：<br>• A DCGAN ✅（深度卷積）<br>• <b>B ANN ❌</b>（近似最鄰域，是搜索算法，與 GAN 無關）<br>• C WassersteinGAN ✅（W-GAN，更穩定）<br>• D CycleGAN ✅（循環，圖像風格轉換）<br><b>🎯 記憶口訣：</b>主流 GAN = D（DC）+ W（Wasserstein）+ C（Cycle）。',
+  'M34': '<b>新題庫對應：M8</b><br>StableDiffusion 兩步走：<br>• A 噪聲添加 ✅<br>• B 圖像去噪 ✅<br>• C 特徵提取 ❌（不是 SD 核心步驟）<br>• <b>D 判別器訓練 ❌</b>（那是 GAN 的事，SD 不是 GAN）<br><b>🎯 記憶點：</b>SD 與 GAN 路線不同——SD 不需要判別器。',
+  'M35': '<b>新題庫對應：M29</b><br>VideoDiffusion 制作步驟：<br>• A 安裝 git + 下載代碼庫 ✅<br>• B 下載 SVD/SVD-XT 模型文件 ✅<br>• C 創建虛擬環境 + 裝依賴 ✅<br>• D 運行模型制作視頻 ✅<br>本題全選——標準的開源模型部署流程。',
+
+  // ===== Round 3: 提示詞工程 + 文案生成（單選） =====
+  'Q1': '<b>新題庫對應：Q9</b><br>文案生成中人類職責 = <b>方向 + 把關 + 細節</b>。<br>• A 生成初稿 ❌（AI 可代勞）<br>• B 內容擴展 ❌（AI 可代勞）<br>• <b>C 方向設定和資料收集 ✅</b><br>• D 增加創意性 ❌（AI 也能輔助創意）<br><b>🎯 記憶點：</b>人類管「決策層」，AI 管「執行層」。',
+  'Q7': '<b>新題庫對應：Q40</b><br>提示詞工程針對誰優化：<br>• A 數據模型 ❌<br>• <b>B 語言模型 ✅</b>（LLM）<br>• C 算法邏輯 ❌（在算法已定的前提下優化輸入）<br>• D 用戶界面 ❌<br><b>🎯 記憶點：</b>Prompt 工程 = LLM 的「輸入工程學」。',
+  'Q11': '<b>新題庫對應：Q50</b><br>選大模型寫文案最重要的因素：<br>• <b>A 語言能力 ✅</b>（核心生產力）<br>• B 用戶友好性 ❌（次要）<br>• C 成本和預算 ❌（不直接決定質量）<br>• D 模型穩定性和更新頻率 ❌（運維層面）<br><b>🎯 記憶點：</b>選工具看核心能力，不看周邊。',
+  'Q12': '<b>新題庫對應：Q45</b><br>大模型文案寫作的顯著提升點：<br>• A 視頻生成 ❌<br>• <b>B 寫作效率 ✅</b><br>• C 圖片生成 ❌<br>• D 語音識別 ❌<br><b>🎯 記憶點：</b>「寫作」場景下的核心提升 = 速度+效率。',
+  'Q14': '<b>新題庫對應：Q16</b><br>機器翻譯中提示詞工程的改進方法：<br>• A 增加複雜度 ❌（不是 prompt 層面）<br>• B 減少語言差異 ❌（翻譯目標而非手段）<br>• <b>C 提供適當的上下文提示詞 ✅</b><br>• D 提高訓練效率 ❌<br><b>🎯 記憶點：</b>Prompt 的核心動作 = 提供上下文。',
+  'Q17': '<b>新題庫對應：Q26</b><br>提示詞工程顯著提升什麼：<br>• A 訓練速度 ❌（與訓練無關）<br>• <b>B 生成文本的質量和相關性 ✅</b><br>• C 用戶計算機技能 ❌<br>• D 模型存儲效率 ❌<br><b>🎯 記憶點：</b>Prompt 工程 = 提升「輸出質量」。',
+  'Q18': '<b>新題庫對應：Q6 🔥</b><br>AIDA 順序 = <b>Attention → Interest → Desire → Action</b>。<br>• A Interest 第二 ❌<br>• B Desire 第三 ❌<br>• C Action 最後 ❌<br>• <b>D Attention 第一 ✅</b><br><b>🎯 記憶口訣：</b>「先抓眼球（A），勾起興趣（I），引發慾望（D），促使行動（A）」。',
+  'Q20': '<b>新題庫對應：Q36</b><br>確保大模型文案質量：<br>• A 單次生成直接用 ❌（缺校驗）<br>• B A/B 測試 ❌（事後評估，不是生成過程）<br>• C 結合多樣化風格 ❌（不直接保證質量）<br>• <b>D 迭代優化 ✅</b><br><b>🎯 記憶點：</b>質量保證 = 迭代（不是單次、不是測試）。',
+  'Q22': '<b>新題庫對應：Q41 🔥</b><br>PAS 順序 = <b>Problem → Agitate → Solution</b>。<br>• A Problem 第一 ❌<br>• B Solution 第三 ❌<br>• C Prove ❌（不在 PAS 中）<br>• <b>D Agitate 第二 ✅</b>（激發痛點）<br><b>🎯 必背：PAS = P-A-S = 問題→激發→方案</b>。',
+  'Q23': '<b>新題庫對應：Q46</b><br>設計高質量提示詞最關鍵：<br>• A 複雜語言 ❌（反向設計）<br>• <b>B 提供具體的背景信息 ✅</b><br>• C 簡短指令 ❌（缺信息）<br>• D 抽象描述 ❌（缺具體性）<br><b>🎯 記憶點：</b>具體 > 簡短/抽象/複雜。',
+  'Q27': '<b>新題庫對應：Q47 🔥🔥</b><br>Prompt 萬能公式四要素：<br>• A 定義角色 ✅<br>• B 交代背景 ✅<br>• <b>C 提供示例 ❌</b>（不是基礎四要素，是 Few-Shot 進階技巧）<br>• D 任務目標 ✅<br><b>🎯 必背口訣：</b>角色 + 背景 + 目標 + 結構（無示例）。<br><b>進階提示：</b>實操時可加示例（Few-Shot），但理論題嚴格按四要素。',
+  'Q29': '<b>新題庫對應：Q53</b><br>提示詞工程的倫理隱私問題：<br>• <b>A 引導生成不適當或有害內容 ✅</b><br>• B 增加計算複雜度 ❌（性能問題）<br>• C 影響訓練速度 ❌（性能問題）<br>• D 需要語言學知識 ❌（技能要求）<br><b>🎯 記憶點：</b>倫理 vs 技術——分清楚題目問哪個層面。',
+  'Q30': '<b>新題庫對應：Q56</b><br>文案質量評估維度：<br>• A 準確性 ✅<br>• B 連貫性 ✅<br>• C 創意性 ✅<br>• <b>D 生成速度 ❌</b>（速度 ≠ 質量）<br><b>🎯 記憶點：</b>質量「三準」= 準確 + 連貫 + 創意。',
+  'Q34': '<b>新題庫對應：Q55</b><br>文案生成流程：資料收集 → Prompt 設計 → 初稿 → <b>編輯優化</b> → 發布。<br>• <b>A 編輯和優化 ✅</b>（初稿後的下一步）<br>• B 收集資料 ❌（前置步驟）<br>• C 立即發布 ❌（缺優化）<br>• D 提示詞設計 ❌（前置）<br><b>🎯 記憶點：</b>初稿後必有「編輯」這一道工序。',
+  'Q37': '<b>新題庫對應：Q3</b><br>提示詞工程提高創造性：<br>• A 限制輸入 ❌（限制 = 反向）<br>• B 減少訓練時間 ❌（性能問題）<br>• <b>C 多樣化提示詞組合 ✅</b><br>• D 降低複雜度 ❌（限制能力）<br><b>🎯 記憶點：</b>「多樣化/組合」 → 開放性 = 提升創造性。',
+  'Q46': '<b>新題庫對應：Q44</b><br>大模型寫作有效實用方法：<br>• A 明確目標和受眾 ✅<br>• B 提供清晰指令 ✅<br>• C 多輪生成 ✅<br>• <b>D 完全信任初稿 ❌</b>（必須迭代和審核）<br><b>🎯 記憶點：</b>「完全信任」「絕不修改」 → 必為錯選。',
+  'Q49': '<b>新題庫對應：Q10</b><br>提示詞工程引導特定行業文本最有效策略：<br>• <b>A 使用行業通用術語 ✅</b><br>• B 增加訓練數據量 ❌（不是 prompt 層面）<br>• C 提高計算複雜度 ❌<br>• D 減少訓練輪次 ❌<br><b>🎯 記憶點：</b>術語 = 領域定錨工具。',
+  'Q50': '<b>新題庫對應：Q32</b><br>內容創作領域 prompt 工程的作用：<br>• A 限制創造力 ❌<br>• B 增加訓練難度 ❌<br>• <b>C 控制風格、內容、結構 ✅</b><br>• D 減少參數 ❌<br><b>🎯 記憶點：</b>Prompt 工程 = 給創作戴上「可控韁繩」。',
+  'Q51': '<b>新題庫對應：Q59</b><br>信息檢索系統中精心設計的提示詞作用：<br>• A 降低速度 ❌<br>• B 增加無關結果 ❌<br>• <b>C 更精確地表達查詢意圖 ✅</b><br>• D 減少相關性 ❌<br><b>🎯 記憶點：</b>好 prompt = 精準提問 = 精準結果。',
+  'Q54': '<b>新題庫對應：Q2</b><br>設計提示詞時最不重要的因素：<br>• A 受眾特徵 ❌（重要）<br>• B 文本目標 ❌（重要）<br>• <b>C 模型訓練算法 ✅</b>（內部機制，與 prompt 無關）<br>• D 信息傳遞效果 ❌（重要）<br><b>🎯 記憶點：</b>Prompt 工程 = 輸入端工程，不關心模型內部。',
+  'Q59': '<b>新題庫對應：Q38</b><br>提示詞設計不包括的要素：<br>• A 明確提問目標 ✅<br>• B 提供背景信息 ✅<br>• <b>C 使用複雜的術語 ❌</b>（反向設計）<br>• D 設定格式和風格 ✅<br><b>🎯 記憶點：</b>好 prompt = 清晰易懂 ≠ 複雜術語。',
+
+  // ===== Round 3: 多選題 =====
+  'M2': '<b>新題庫對應：M27</b><br>生成式提示詞特點：<br>• A 創造性和靈活性 ✅<br>• B 上下文依賴性 ✅<br>• <b>C 固定不變的輸出 ❌</b>（反向設計——生成式輸出每次都不同）<br>• D 語言風格和一致性 ✅<br><b>🎯 記憶點：</b>「生成式」與「固定」天然矛盾。',
+  'M5': '<b>新題庫對應：M23 🔥</b><br>高質量提示詞要素：<br>• A 明確任務目標 ✅<br>• B 簡明扼要語言 ✅<br>• C 足夠背景信息 ✅<br>• D 指定格式和風格 ✅<br>• <b>E 包含複雜技術術語 ❌</b>（反向設計）<br><b>🎯 三大陷阱識別：</b>本題屬「反向類陷阱」——E 是好事的反面。',
+  'M7': '<b>新題庫對應：M40</b><br>宣傳文案關鍵特點：<br>• A 簡潔明了 ✅<br>• <b>B 詳細介紹產品歷史 ❌</b>（與「簡潔抓眼球」目的相反）<br>• C 情感共鳴 ✅<br>• D 強調價值 ✅<br>• E 號召行動 ✅<br><b>🎯 記憶點：</b>宣傳 = 短平快，不是說明書。',
+  'M11': '<b>新題庫對應：M31</b><br>文案生成的優化方法：<br>• A 反饋調整 ✅<br>• B 多次生成 ✅<br>• <b>C 使用單一提示詞 ❌</b>（限制多樣性）<br>• D 人工編輯 ✅<br>• E 持續學習 ✅<br><b>🎯 記憶點：</b>「單一/固定」常為干擾項。',
+  'M14': '<b>新題庫對應：M15</b><br>大模型文案革新作用<b>錯誤</b>說法：<br>• A 提高效率 ✅（正確說法）<br>• <b>B 增強圖片生成 ❌</b>（與文案無關）<br>• C 提升質量 ✅（正確）<br>• D 個性化輸出 ✅（正確）<br>• <b>E 改善語音識別 ❌</b>（與文案無關）<br><b>🎯 解題技巧：</b>看到「圖片/語音」放在「文案」題中 → 是錯誤的革新點。',
+  'M15': '<b>新題庫對應：M13</b><br>大模型生成文案質量提升方法：<br>• A 反復迭代優化 ✅<br>• <b>B 使用單一提示詞 ❌</b>（限制多樣性）<br>• C 結合數據分析 ✅<br>• D 多輪生成內容 ✅<br>• <b>E 增加文案長度 ❌</b>（質量≠長度）<br><b>🎯 記憶點：</b>「單一」「為了長而長」 → 干擾項。',
+  'M20': '<b>新題庫對應：M10</b><br>提示詞工程廣泛應用領域：<br>• A 信息檢索 ✅<br>• B 自然語言生成 ✅<br>• C 文本分類 ✅<br>• D 機器翻譯 ✅<br>• E 交互式應用 ✅<br>本題全選——五大領域均有 prompt 工程的身影。',
+  'M27': '<b>新題庫對應：M9</b><br>優化文本生成的提示詞類型：<br>• A 上下文指導類 ✅<br>• B 情感調控類 ✅<br>• C 行動指導類 ✅<br>• D 風格和語氣指導類 ✅<br>• E 時間和地點指導類 ✅<br>本題全選——五類提示詞均能優化文本生成。',
+  'M28': '<b>新題庫對應：M32</b><br>選擇大模型考慮因素：<br>• A 語言能力 ✅<br>• B 用戶評價 ✅<br>• C 用戶友好性 ✅<br>• D 生成速度 ✅<br>• E 成本和預算 ✅<br>本題全選——選型五要素均應考量。',
+  'M32': '<b>新題庫對應：M17</b><br>提升提示詞工程的做法：<br>• A 深入了解工作原理 ✅<br>• B 不斷嘗試和優化 ✅<br>• <b>C 忽略用戶反饋 ❌</b>（反向操作）<br>• D 結合多種類型組合 ✅<br>• <b>E 僅使用簡單通用提示詞 ❌</b>（限制效果）<br><b>🎯 記憶點：</b>「忽略反饋」「僅用簡單」 → 都是負面操作。',
+  'M33': '<b>新題庫對應：M22</b><br>人類在文案生成負責的任務：<br>• A 方向設定和資料收集 ✅<br>• <b>B 生成初稿 ❌</b>（AI 可代勞）<br>• C 質量把關 ✅<br>• D 細節調整 ✅<br>• <b>E 內容擴展 ❌</b>（AI 可代勞）<br><b>🎯 記憶點：</b>人類管「決策 + 把關 + 細節」；AI 管「執行」。',
+  'M36': '<b>新題庫對應：M26</b><br>角色定位類提示詞作用：<br>• A 幫助理解用戶意圖 ✅<br>• B 設定輸出長度 ❌（屬結構類提示詞）<br>• C 引導特定角色視角 ✅<br>• D 規定語言風格 ❌（屬風格類提示詞）<br><b>🎯 記憶點：</b>不同類型 prompt 有「分工」——角色 ≠ 結構 ≠ 風格。',
+  'M39': '<b>新題庫對應：M36</b><br>生成式提示詞描述：<br>• A 依賴語言模型和條件概率 ✅<br>• <b>B 不考慮上下文 ❌</b>（恰恰高度依賴上下文）<br>• C 束搜索/採樣策略起重要作用 ✅<br>• <b>D 主要用於填充式補全 ❌</b>（用途遠不止此）<br><b>🎯 記憶點：</b>生成式 = 上下文敏感型，不是「填空式」。',
+
+  // ===== Round 4: 倫理 + 綜合鞏固 =====
+  'Q35': '<b>新題庫對應：Q13</b><br>生成式 AI 的倫理問題：<br>• <b>A 傳播虛假或不實數據 ✅</b><br>• B 提高工作效率 ❌（正面影響）<br>• C 降低生產成本 ❌（正面影響）<br>• D 增加信息透明度 ❌（正面影響）<br><b>🎯 解題技巧：</b>看到正面選項放在「倫理問題/危害」題 → 必為干擾項。',
+  'Q39': '<b>新題庫對應：Q48 ⚠️</b><br>生成式 AI 危害<b>不</b>包括：<br>• A 影響信息可信度 ❌（是危害）<br>• <b>B 增加就業機會 ✅</b>（這是好事，不是危害）<br>• C 引發隱私擔憂 ❌（是危害）<br>• D 帶來倫理問題 ❌（是危害）<br><b>🎯 解題技巧（10 秒秒答）：</b>「這題哪個選項是『好事』？把好事排除掉。」',
+  'Q56': '<b>新題庫對應：Q15</b><br>應對隱私擔憂的措施：<br>• A 加強數據加密 ❌（治標不治本）<br>• <b>B 制定法規和機制 ✅</b>（治本）<br>• C 減少 AI 應用 ❌（阻礙進步）<br>• D 忽視隱私 ❌（極危險）<br><b>🎯 記憶點：</b>「制定法規」 = 系統性根本解。',
+  'M23': '<b>新題庫對應：M4 🔥</b><br>PAS 模型結構：<br>• A Problem 問題 ✅<br>• B Agitate 激發 ✅<br>• C Solution 解決方案 ✅<br>• <b>D Prove ❌</b>（不在 PAS 中）<br>• <b>E Attention ❌</b>（屬 AIDA 第一步，混淆陷阱）<br><b>🎯 三大陷阱識別：</b>D/E 都是「混淆類陷阱」——把另一個模型的元素混進來。',
+  'M29': '<b>新題庫對應：M16 🔥</b><br>生成式 AI 危害：<br>• A 影響信息可信度 ✅<br>• B 引發隱私擔憂 ✅<br>• C 帶來倫理問題 ✅<br>• <b>D 縮小貧富差距 ❌</b>（恰恰可能加劇——技術紅利分配不均）<br><b>🎯 解題技巧：</b>看到「縮小差距/促進公平」放在危害題 → 干擾項。',
+  'M31': '<b>新題庫對應：M39</b><br>VideoGPT 視頻創作操作：<br>• A 環境配置 ✅<br>• B 構建數據集 ✅<br>• C 對 VQ-VAE 訓練 ✅<br>• D 對 Transformer 訓練 ✅<br>• E 推理使用 ✅<br>本題全選——標準的端到端 ML 流程五步驟。',
+  'M40': '<b>新題庫對應：M35</b><br>應對隱私擔憂措施：<br>• A 加強數據加密 ✅<br>• B 制定法規 ✅<br>• C 提高公眾意識 ✅<br>• <b>D 限制 AI 應用 ❌</b>（不是根本方法，反而阻礙進步）<br><b>🎯 記憶口訣：</b>三管齊下 = 技術（加密）+ 制度（法規）+ 意識（公眾）。'
+};
+
+// 取詳解（fallback 到簡短解析）
+function getDetailExplain(id, fallback) {
+  return EXPLAIN_DETAIL[id] || fallback;
+}
+
+// 渲染解析區塊：精簡 + 詳解切換
+function renderExpBlock(q, opts) {
+  opts = opts || {};
+  const expandedShort = opts.expandedShort || false; // 精簡解析是否預設展開
+  const detail = getDetailExplain(q.id, q.e);
+  const hasDetail = !!EXPLAIN_DETAIL[q.id]; // 有真正的詳解才顯示按鈕
+  const needsExpand = !expandedShort && q.e.length > 80;
+  const detailId = 'detail-' + q.id + '-' + Date.now();
+
+  let html = `<div class="fb-exp${expandedShort ? ' expanded' : ''}" id="fb-exp">${q.e}</div>`;
+  if (needsExpand) {
+    html += `<div class="fb-exp-toggle" onclick="toggleExplanation()">展開精簡解析</div>`;
+  }
+  if (hasDetail) {
+    html += `<div class="detail-toggle" onclick="toggleDetailExplain('${detailId}', this)">📖 查看詳解</div>`;
+    html += `<div class="fb-exp-detail" id="${detailId}">${detail}</div>`;
+  }
+  return html;
+}
+
+// 切換詳解顯示
+function toggleDetailExplain(detailId, btn) {
+  const el = document.getElementById(detailId);
+  if (!el) return;
+  el.classList.toggle('show');
+  btn.classList.toggle('active');
+  btn.innerHTML = el.classList.contains('show') ? '📖 收起詳解' : '📖 查看詳解';
+}
+
 // ============================================================
 // QUESTIONS DATA
 // ============================================================
@@ -560,11 +723,10 @@ function renderQuestion() {
     // 已答過，顯示反饋（只讀模式）
     const fbClass = history.isCorrect ? 'fb-ok' : 'fb-err';
     const fbTitle = history.isCorrect ? '✓ 正確' : '✗ 錯誤';
-    const needsExpand = q.e.length > 80;
     html += `
       <div class="feedback show ${fbClass}">
         <div class="fb-title">${fbTitle}</div>
-        <div class="fb-exp${needsExpand ? '' : ' expanded'}" id="fb-exp" style="max-height:none">${q.e}</div>
+        ${renderExpBlock(q, {expandedShort: true})}
         <div class="fb-ans">正確答案：${q.a}</div>
       </div>
       <div class="action-row">
@@ -605,12 +767,10 @@ function renderFeedback(isCorrect) {
 
   const fbClass = isCorrect ? 'fb-ok' : 'fb-err';
   const fbTitle = isCorrect ? '✓ 正確' : '✗ 錯誤';
-  const needsExpand = q.e.length > 80;
   const fbHtml = `
     <div class="feedback show ${fbClass}">
       <div class="fb-title">${fbTitle}</div>
-      <div class="fb-exp" id="fb-exp">${q.e}</div>
-      ${needsExpand ? '<div class="fb-exp-toggle" onclick="toggleExplanation()">展開解析</div>' : ''}
+      ${renderExpBlock(q)}
       <div class="fb-ans">正確答案：${q.a}</div>
     </div>`;
   document.querySelector('.action-row').insertAdjacentHTML('beforebegin', fbHtml);
@@ -1033,12 +1193,10 @@ function renderWrongFeedback(isCorrect, q, wrongItem) {
 
   const fbClass = isCorrect ? 'fb-ok' : 'fb-err';
   const fbTitle = isCorrect ? '✓ 正確' : '✗ 錯誤';
-  const needsExpand = q.e.length > 80;
   const fbHtml = `
     <div class="feedback show ${fbClass}">
       <div class="fb-title">${fbTitle}</div>
-      <div class="fb-exp" id="fb-exp">${q.e}</div>
-      ${needsExpand ? '<div class="fb-exp-toggle" onclick="toggleExplanation()">展開解析</div>' : ''}
+      ${renderExpBlock(q)}
       <div class="fb-ans">正確答案：${q.a} | 上次答案：${wrongItem.userAns}</div>
     </div>`;
   document.querySelector('.action-row').insertAdjacentHTML('beforebegin', fbHtml);
@@ -1656,7 +1814,7 @@ function renderShuffleQuestion() {
     html += `
       <div class="feedback show ${fbClass}">
         <div class="fb-title">${fbTitle}</div>
-        <div class="fb-exp expanded" style="max-height:none">${q.e}</div>
+        ${renderExpBlock(q, {expandedShort: true})}
         <div class="fb-ans">正確答案：${q.a}</div>
       </div>
       <div class="action-row">
@@ -1850,6 +2008,7 @@ function renderWrongReview() {
         <div class="review-opts">${optsHtml}</div>
         <div class="review-ans">✅ 正確答案：<strong>${w.a}</strong>   ❌ 上次作答：<strong>${w.userAns || '未作答'}</strong></div>
         ${w.e ? `<div class="review-exp${needsExpand ? '' : ' show'}" id="rexp-${w.id}">${w.e}</div>${needsExpand ? `<span class="review-exp-toggle" onclick="toggleReviewExp(${w.id})">展開解析 ▾</span>` : ''}` : ''}
+        ${EXPLAIN_DETAIL[w.id] ? `<div class="detail-toggle" onclick="toggleDetailExplain('rdetail-${w.id}', this)" style="margin-top:6px">📖 查看詳解</div><div class="fb-exp-detail" id="rdetail-${w.id}">${EXPLAIN_DETAIL[w.id]}</div>` : ''}
       </div>`;
   });
   html += `</div>`;
